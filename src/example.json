@@ -1,0 +1,21 @@
+{
+	"key": "1bb2d984",
+	"headers": [{}],
+	"from": { "address": "from@example.com", "name": "example name" },
+	"to": [{ "address": "to@example.com", "name": "example name" }],
+	"subject": "example subject",
+	"messageId": "<***@mail.gmail.com>",
+	"date": "2024-12-21T22:50:49.000Z",
+	"html": "<div dir=\"ltr\">example html</div>\n\n",
+	"text": "example\ntext\n\n",
+	"attachments": [
+		{
+			"filename": "example.jpeg",
+			"mimeType": "image/jpeg",
+			"disposition": "attachment",
+			"related": true,
+			"contentId": "<***>",
+			"content": {}
+		}
+	]
+}
