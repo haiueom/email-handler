@@ -1,0 +1,21 @@
+name: Deploy to Cloudflare
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          # preCommands: types --env-interface CloudflareBindings
+          environment: production
+          secrets: |
+            DC_WEBHOOK
+        env:
+          DC_WEBHOOK: ${{ secrets.DC_WEBHOOK }}
