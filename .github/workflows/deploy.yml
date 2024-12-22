@@ -33,8 +33,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CF_API_TOKEN }}
           packageManager: pnpm
-          command: deploy --env production --minify
-          environment: production
+          command: deploy
           secrets: |
             DC_WEBHOOK
         env:
