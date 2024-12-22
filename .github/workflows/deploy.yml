@@ -13,7 +13,7 @@ jobs:
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CF_API_TOKEN }}
-          preCommands: types --env-interface CloudflareBindings
+          command: deploy --env production
           environment: production
           secrets: |
             DC_WEBHOOK
