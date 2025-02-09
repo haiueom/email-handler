@@ -30,5 +30,5 @@ This project is licensed under the [MIT License](LICENSE).
 
 For questions or support, please contact the maintainer:
 
-- **Email**: your-email@example.com
-- **GitHub**: [your-username](https://github.com/your-username)
+- **Email**: haiueom@zernow.com
+- **GitHub Issues**: https://github.com/haiueom/email-handler/issues

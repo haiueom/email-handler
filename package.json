@@ -1,18 +1,17 @@
 {
 	"name": "email-handler",
-	"version": "0.0.0",
-	"private": true,
+	"version": "1.0.0",
 	"scripts": {
 		"deploy": "wrangler deploy --minify",
 		"dev": "wrangler dev",
-		"cf-typegen": "wrangler types --env-interface CloudflareBindings"
+		"cf-typegen": "wrangler types"
 	},
 	"dependencies": {
-		"postal-mime": "^2.3.2"
+		"postal-mime": "^2.4.3"
 	},
 	"devDependencies": {
-		"@cloudflare/workers-types": "^4.20241216.0",
-		"typescript": "^5.5.2",
-		"wrangler": "^3.60.3"
+		"@cloudflare/workers-types": "^4.20250204.0",
+		"typescript": "^5.7.3",
+		"wrangler": "^3.98.0"
 	}
 }

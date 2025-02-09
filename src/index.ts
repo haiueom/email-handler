@@ -14,7 +14,7 @@ async function notifyDiscord(message: string | { embeds: any[] }, webhook: strin
 }
 
 export default {
-	async email(message: ForwardableEmailMessage, env: CloudflareBindings, ctx: ExecutionContext): Promise<void> {
+	async email(message: ForwardableEmailMessage, env: Env, ctx: ExecutionContext): Promise<void> {
 		const parser = new PostalMime();
 		const body = await new Response(message.raw).arrayBuffer();
 		const email = await parser.parse(body);
