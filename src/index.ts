@@ -23,7 +23,7 @@ export default {
 		await env.MAIL_DB.put('stats-count', String(parseInt(prev_count) + 1));
 
 		let sender = email.from.address;
-		let recipient = email.to?.[0]?.address || 'unknown';
+		let recipient = email.to?.[0]?.address || 'Unknown';
 		const key = Math.random().toString(16).slice(2, 10);
 
 		const data = {
@@ -49,7 +49,7 @@ export default {
 						{ name: '🔐 Key', value: `\`\`\`${key}\`\`\``, inline: true },
 						{
 							name: '📅 Date',
-							value: discordTimestamp,
+							value: `\`\`\`${discordTimestamp}\`\`\``,
 							inline: true,
 						},
 						{ name: '\t', value: '\t', inline: false },
