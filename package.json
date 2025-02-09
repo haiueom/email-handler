@@ -8,7 +8,7 @@
 		"cf-typegen": "wrangler types --env-interface CloudflareBindings"
 	},
 	"dependencies": {
-		"postal-mime": "^2.3.2"
+		"postal-mime": "^2.4.3"
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "^4.20241216.0",
