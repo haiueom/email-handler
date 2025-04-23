@@ -60,7 +60,7 @@ export default {
 
 			// prepare human-readable text
 			const sentDate = email.date ? new Date(email.date) : new Date();
-			const timestamp = `<t:${Math.floor(sentDate.getTime() / 1000)}:F>`;
+			const humanDate = sentDate.toLocaleString();
 			const bodyText = email.text?.substring(0, 1000) ?? '';
 			const truncated = email.text && email.text.length > 1000 ? '…(truncated)' : '';
 
@@ -68,7 +68,7 @@ export default {
 				`📤 From    : ${sender}`,
 				`📥 To      : ${recipient}`,
 				`🔐 Key     : ${key}`,
-				`📅 Date    : ${timestamp}`,
+				`📅 Date    : ${humanDate}`,
 				`🧾 Subject : ${email.subject || '(no subject)'}`,
 				``,
 				`💌 Message :`,
