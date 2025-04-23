@@ -1,34 +1,53 @@
 # Email Handler
 
-## Project Description
-
-This is a serverless application designed to manage and process email-related operations efficiently. Leveraging the power of Cloudflare Email Workers, this project ensures high performance, scalability, and low latency for email handling tasks such as forwarding, filtering, and auto-responses.
+A serverless Cloudflare Email Worker that parses incoming emails, stores them in KV, tracks a simple processed-email count, and posts a human-readable `.txt` summary to Discord via webhook.
 
 ## Features
 
-- **Email Forwarding**: Automatically forward emails to predefined addresses.
-- **Filtering**: Filter emails based on specific criteria (e.g., sender, subject, content).
-- **Auto-Responses**: Generate automatic replies for specific triggers.
-- **Error Handling**: Robust error logging and handling to ensure reliability.
-- **Secure Processing**: Protects email data with best security practices.
+- **Email Parsing & Storage**
+  Parses raw MIME (via `postal-mime`) and saves full message JSON under `recipient-key` in Cloudflare KV.
+- **Statistics Counter**
+  Increments and persists a `stats-count` key in KV for each processed email.
+- **Discord Attachment**
+  Generates a `.txt` summary (from, to, key, date, subject, body) and uploads it to Discord as a file attachment.
 
-## Contributing
+## How It Works
 
-Contributions are welcome! Please follow these steps:
+On each incoming email:
 
-1. Fork the repository.
-2. Create a new branch (`git checkout -b feature-branch`).
-3. Commit your changes (`git commit -m 'Add new feature'`).
-4. Push to the branch (`git push origin feature-branch`).
-5. Open a pull request.
+1. Worker parses MIME and extracts metadata (from, to, subject, date, body).
+2. Increments stats-count in KV.
+3. Stores full JSON under recipient-key.
+4. Builds a .txt summary:
 
-## License
+```yaml
+Salin
+Edit
+📤 From    : sender@example.com
+📥 To      : you@domain.com
+🔐 Key     : ab12cd34
+📅 Date    : 4/24/2025, 3:15:07 PM
+🧾 Subject : Hello World
 
-This project is licensed under the [MIT License](LICENSE).
+💌 Message :
+This is the email body…
+```
+5. Posts that .txt file to Discord via the configured webhook.
+6. Errors are logged to the worker console.
 
-## Contact
+## Configuration
 
-For questions or support, please contact the maintainer:
+| Environment Variable | Description                      |
+|----------------------|----------------------------------|
+| `DC_WEBHOOK`         | Discord webhook URL              |
+| `MAIL_DB`            | Cloudflare KV namespace binding  |
 
-- **Email**: haiueom@zernow.com
-- **GitHub Issues**: https://github.com/haiueom/email-handler/issues
+In `wrangler.toml` or Dashboard:
+
+```toml
+[env.production]
+vars = { DC_WEBHOOK = "https://discord.com/api/webhooks/…" }
+kv_namespaces = [
+  { binding = "MAIL_DB", id = "your-kv-namespace-id" }
+]
+```
