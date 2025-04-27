@@ -61,8 +61,7 @@ export default {
 			// prepare human-readable text
 			const sentDate = email.date ? new Date(email.date) : new Date();
 			const humanDate = sentDate.toLocaleString();
-			const bodyText = email.text?.substring(0, 1000) ?? '';
-			const truncated = email.text && email.text.length > 1000 ? '…(truncated)' : '';
+			const bodyText = email.text || '(no text)';
 
 			const lines = [
 				`📤 From    : ${sender}`,
@@ -72,7 +71,7 @@ export default {
 				`🧾 Subject : ${email.subject || '(no subject)'}`,
 				``,
 				`💌 Message :`,
-				bodyText + truncated,
+				bodyText
 			];
 			const content = lines.join('\n');
 
