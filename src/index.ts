@@ -61,7 +61,8 @@ export default {
 			// prepare human-readable text
 			const sentDate = email.date ? new Date(email.date) : new Date();
 			const humanDate = sentDate.toLocaleString();
-			const bodyText = email.text || '(no text)';
+			const cleanHtml = email.html?.replace(/<[^>]+>/g, ' ') || '';
+			const bodyText = email.text || cleanHtml || '(no text)';
 
 			const lines = [
 				`📤 From    : ${sender}`,
