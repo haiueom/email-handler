@@ -1,4 +1,23 @@
 import PostalMime from 'postal-mime';
+import * as cheerio from 'cheerio';
+
+function extractTextAndLinks(html: string) {
+	const $ = cheerio.load(html);
+
+	// Remove unwanted tags
+	$('style, script').remove();
+
+	// Get text content
+	const text = $('body').text().replace(/\s+/g, ' ').trim();
+
+	// Extract links
+	const links = $('a').map((_: any, a: any) => ({
+		href: $(a).attr('href'),
+		text: $(a).text().trim()
+	})).get();
+
+	return { text, links };
+}
 
 async function incrementMailCount(db: KVNamespace): Promise<number> {
 	const prev = (await db.get('stats-count')) || '0';
@@ -61,8 +80,7 @@ export default {
 			// prepare human-readable text
 			const sentDate = email.date ? new Date(email.date) : new Date();
 			const humanDate = sentDate.toLocaleString();
-			const cleanHtml = email.html?.replace(/<[^>]+>/g, ' ') || '';
-			const bodyText = email.text || cleanHtml || '(no text)';
+			const cleanHtml = extractTextAndLinks(email.html || '')
 
 			const lines = [
 				`📤 From    : ${sender}`,
@@ -71,8 +89,13 @@ export default {
 				`📅 Date    : ${humanDate}`,
 				`🧾 Subject : ${email.subject || '(no subject)'}`,
 				``,
+				`🔗 Links   :`,
+				...cleanHtml.links.map((link: any) => {
+					return `- ${link.text} (${link.href})`;
+				}),
+				``,
 				`💌 Message :`,
-				bodyText
+				`${email.text || cleanHtml.text || '(no text)'}`,
 			];
 			const content = lines.join('\n');
 

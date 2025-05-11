@@ -7,6 +7,7 @@
 		"cf-typegen": "wrangler types"
 	},
 	"dependencies": {
+		"cheerio": "^1.0.0",
 		"postal-mime": "^2.4.3"
 	},
 	"devDependencies": {
