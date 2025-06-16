@@ -21,8 +21,6 @@ On each incoming email:
 4. Builds a .txt summary:
 
 ```yaml
-Salin
-Edit
 📤 From    : sender@example.com
 📥 To      : you@domain.com
 🔐 Key     : ab12cd34
@@ -32,22 +30,24 @@ Edit
 💌 Message :
 This is the email body…
 ```
+
 5. Posts that .txt file to Discord via the configured webhook.
 6. Errors are logged to the worker console.
 
 ## Configuration
 
-| Environment Variable | Description                      |
-|----------------------|----------------------------------|
-| `DC_WEBHOOK`         | Discord webhook URL              |
-| `MAIL_DB`            | Cloudflare KV namespace binding  |
+1. `.env`
 
-In `wrangler.toml` or Dashboard:
+| Environment Variable  | Description         |
+| --------------------- | ------------------- |
+| `DISCORD_WEBHOOK_URL` | Discord webhook URL |
+
+2. `wrangler.toml`
 
 ```toml
 [env.production]
-vars = { DC_WEBHOOK = "https://discord.com/api/webhooks/…" }
+vars = { DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/…" }
 kv_namespaces = [
-  { binding = "MAIL_DB", id = "your-kv-namespace-id" }
+  { binding = "MAIL_KV", id = "your-kv-namespace-id" }
 ]
 ```
