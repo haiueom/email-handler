@@ -2,6 +2,8 @@
 
 Indonesia | [Inggris](README.md)
 
+![email-handler](https://github.com/user-attachments/assets/538b2ab3-fc5d-4738-994a-c404059ceb2c)
+
 Sebuah Cloudflare Email Worker serverless yang mengurai email masuk, menyimpannya di KV, melacak jumlah email yang diproses, dan mengirimkan ringkasan .txt yang mudah dibaca ke Discord melalui webhook.
 
 ## Fitur Utama
