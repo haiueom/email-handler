@@ -1,8 +1,7 @@
 #:schema node_modules/wrangler/config-schema.json
 name = "email-handler"
 main = "src/index.ts"
-compatibility_date = "2025-02-09"
-compatibility_flags = ["nodejs_compat"]
+compatibility_date = "2025-05-05"
 
 # Workers Logs
 # Docs: https://developers.cloudflare.com/workers/observability/logs/workers-logs/
