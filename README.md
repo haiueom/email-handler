@@ -2,6 +2,8 @@
 
 English | [Indonesian](README_id.md)
 
+![email-handler](https://github.com/user-attachments/assets/538b2ab3-fc5d-4738-994a-c404059ceb2c)
+
 A serverless Cloudflare Email Worker that parses incoming emails, stores them in KV, tracks a simple processed-email count, and posts a human-readable `.txt` summary to Discord via webhook.
 
 ## Features
