@@ -2,7 +2,8 @@
 	"name": "email-handler",
 	"version": "1.0.0",
 	"scripts": {
-		"deploy": "wrangler deploy --minify",
+		"deploy": "wrangler deploy",
+		"deploy-min": "wrangler deploy --minify",
 		"dev": "wrangler dev",
 		"cf-typegen": "wrangler types"
 	},
@@ -13,6 +14,6 @@
 	"devDependencies": {
 		"@types/node": "^24.0.3",
 		"typescript": "^5.8.3",
-		"wrangler": "^4.18.0"
+		"wrangler": "^4.20.0"
 	}
 }
