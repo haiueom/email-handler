@@ -1,4 +1,4 @@
-import PostalMime, { Email } from 'postal-mime';
+import PostalMime, { type Email } from 'postal-mime';
 import * as cheerio from 'cheerio';
 
 // --- Type Definitions ---
@@ -6,16 +6,19 @@ import * as cheerio from 'cheerio';
 /**
  * Represents a parsed link from the email body.
  */
-interface Link {
+interface ParsedLink {
 	href?: string;
 	text: string;
 }
 
 /**
- * Represents the structured data of a parsed email record to be saved.
+ * Represents the structured data of a parsed email record.
+ * The 'id' is now a number and optional at creation time.
  */
-interface EmailRecord extends Email {
-	key: string;
+interface EmailRecord extends Omit<Email, 'html'> {
+	id?: number; // Will be assigned by the database
+	html?: string;
+	raw: string;
 }
 
 // --- Helper Functions ---
@@ -25,111 +28,90 @@ interface EmailRecord extends Email {
  * @param html The HTML content of the email.
  * @returns An object containing the extracted text and an array of links.
  */
-function extractTextAndLinks(html: string): { text: string; links: Link[] } {
+function extractFromHtml(html: string): { text: string; links: ParsedLink[] } {
 	const $ = cheerio.load(html);
-
-	// Remove tags that don't contribute to readable content
-	$('style, script, head, title').remove();
-
+	$('style, script, head, title, meta, link').remove();
 	const text = $('body').text().replace(/\s\s+/g, ' ').trim();
-
 	const links = $('a')
-		.map((_, el): Link => ({
+		.map((_, el): ParsedLink => ({
 			href: $(el).attr('href'),
 			text: $(el).text().trim(),
 		}))
 		.get();
-
 	return { text, links };
 }
 
 /**
- * Increments the total email count in the KV namespace.
- * @param db The KV namespace binding.
- * @returns The next email count.
+ * Saves the email data to the D1 database and returns the new row ID.
+ * @param db The D1 database binding.
+ * @param email The email data to store.
+ * @returns The auto-incremented ID of the new email record.
  */
-async function incrementMailCount(db: KVNamespace): Promise<number> {
-	const currentCountStr = (await db.get('stats-count')) || '0';
-	const nextCount = parseInt(currentCountStr, 10) + 1;
-	await db.put('stats-count', String(nextCount));
-	return nextCount;
+async function saveEmail(db: D1Database, email: Omit<EmailRecord, 'id'>): Promise<number> {
+	const { to, from, subject, text, html, raw } = email;
+	const recipient = to?.[0]?.address ?? 'unknown_recipient';
+	const sender = from?.address ?? 'unknown_sender';
+
+	const stmt = db.prepare(
+		`INSERT INTO emails (recipient, sender, subject, body_text, body_html, raw_email)
+     VALUES (?, ?, ?, ?, ?, ?)`
+	);
+
+	const result = await stmt.bind(recipient, sender, subject, text, html, raw).run();
+
+	if (!result.success || result.meta.last_row_id === null) {
+		throw new Error('Failed to insert email into database.');
+	}
+
+	return result.meta.last_row_id;
 }
 
 /**
- * Saves the full parsed email data to the KV namespace.
- * @param db The KV namespace binding.
- * @param recipient The primary recipient's email address.
- * @param key The unique key for this email.
- * @param data The email data to store.
- */
-async function saveEmail(
-	db: KVNamespace,
-	recipient: string,
-	key: string,
-	data: EmailRecord
-): Promise<void> {
-	await db.put(`${recipient}-${key}`, JSON.stringify(data));
-}
-
-/**
- * Sends a text file as an attachment to a Discord webhook.
+ * Sends a formatted text file as an attachment to a Discord webhook.
  * @param text The text content for the file.
  * @param filename The desired filename for the attachment.
- * @param webhook The Discord webhook URL.
+ * @param webhookUrl The Discord webhook URL from environment variables.
  */
-async function sendDiscordAttachment(
-	text: string,
-	filename: string,
-	webhook: string
-): Promise<void> {
-	const form = new FormData();
-	form.append('file', new Blob([text], { type: 'text/plain' }), filename);
+async function sendDiscordNotification(text: string, filename: string, webhookUrl: string): Promise<void> {
+	const formData = new FormData();
+	formData.append('file', new Blob([text], { type: 'text/plain' }), filename);
 
-	const response = await fetch(webhook, { method: 'POST', body: form });
+	const response = await fetch(webhookUrl, { method: 'POST', body: formData });
 
 	if (!response.ok) {
 		const errorText = await response.text();
-		console.error(`Discord webhook failed with status ${response.status}: ${errorText}`);
+		console.error(`Discord webhook failed: ${response.status} ${response.statusText}`, errorText);
+		throw new Error('Failed to send Discord notification.');
 	}
 }
 
 /**
- * Parses a raw email message from a buffer.
- * @param rawBuffer The ArrayBuffer containing the raw email.
- * @returns The parsed email object.
- */
-async function parseEmail(rawBuffer: ArrayBuffer): Promise<Email> {
-	const parser = new PostalMime();
-	return await parser.parse(rawBuffer);
-}
-
-/**
  * Creates the content for the Discord message attachment.
- * @param email The parsed email record.
- * @param cleanHtml The extracted text and links from the HTML part.
- * @returns A string formatted for the .txt file.
+ * @param email The parsed email record, including the database ID.
+ * @returns A formatted string for the .txt file.
  */
-function createDiscordMessage(email: EmailRecord, cleanHtml: { text: string; links: Link[] }): string {
+function createDiscordMessage(email: EmailRecord): string {
+	const { text: cleanText, links } = extractFromHtml(email.html || '');
 	const sentDate = email.date ? new Date(email.date) : new Date();
-	const humanDate = sentDate.toLocaleString('en-US', { timeZone: 'UTC' });
+	const localDate = sentDate.toLocaleString('en-US', { timeZone: 'Asia/Makassar' });
 
-	const linkLines = cleanHtml.links.length > 0
-		? cleanHtml.links.map(link => `- ${link.text} (${link.href || 'No URL'})`).join('\n')
-		: '(no links)';
+	const linkLines = links.length > 0
+		? links.map(link => `- ${link.text}: ${link.href || 'No URL'}`).join('\n')
+		: 'No links found.';
 
-	return [
-		`📤 From    : ${email.from.address}`,
-		`📥 To      : ${email.to?.[0]?.address ?? 'unknown'}`,
-		`🔐 Key     : ${email.key}`,
-		`📅 Date    : ${humanDate} (UTC)`,
-		`🧾 Subject : ${email.subject || '(no subject)'}`,
-		``,
-		`🔗 Links   :`,
-		linkLines,
-		``,
-		`💌 Message :`,
-		`${email.text || cleanHtml.text || '(no text content)'}`,
-	].join('\n');
+	return `
+📤 From: ${email.from.address}
+📥 To: ${email.to?.[0]?.address ?? 'N/A'}
+🔐 ID: ${email.id}
+📅 Date: ${localDate} (WITA)
+🧾 Subject: ${email.subject || '(No Subject)'}
+
+🔗 Links:
+${linkLines}
+
+💌 Message:
+${email.text || cleanText || '(No text content)'}
+  `.trim();
 }
 
 // --- Main Email Handler ---
@@ -139,29 +121,32 @@ export default {
 		try {
 			// 1. Parse the incoming raw email
 			const rawBuffer = await new Response(message.raw).arrayBuffer();
-			const parsedEmail = await parseEmail(rawBuffer);
+			const parser = new PostalMime();
+			const parsedEmail = await parser.parse(rawBuffer);
 
-			// 2. Increment statistics
-			await incrementMailCount(env.EMAIL_KV);
+			// 2. Prepare the initial email record (without an ID)
+			const emailData: Omit<EmailRecord, 'id'> = {
+				...parsedEmail,
+				raw: new TextDecoder().decode(rawBuffer),
+			};
 
-			// 3. Prepare email record for storage
-			const recipient = parsedEmail.to?.[0]?.address ?? 'unknown_recipient';
-			const key = crypto.randomUUID().substring(0, 8);
-			const emailRecord: EmailRecord = { key, ...parsedEmail };
+			// 3. Save the email to D1 and get the new ID
+			const newId = await saveEmail(env.DB, emailData);
 
-			// 4. Save the full email JSON to KV
-			await saveEmail(env.EMAIL_KV, recipient, key, emailRecord);
+			// 4. Create the final record and send Discord notification
+			const finalEmailRecord: EmailRecord = { ...emailData, id: newId };
+			const discordContent = createDiscordMessage(finalEmailRecord);
+			const filename = `email-${finalEmailRecord.id}.txt`;
+			await sendDiscordNotification(discordContent, filename, env.DISCORD_WEBHOOK_URL);
 
-			// 5. Create and send the Discord notification
-			const cleanHtml = extractTextAndLinks(parsedEmail.html || '');
-			const discordContent = createDiscordMessage(emailRecord, cleanHtml);
-			const filename = `email_${recipient}_${key}.txt`;
-
-			await sendDiscordAttachment(discordContent, filename, env.DISCORD_WEBHOOK_URL);
-		} catch (err: unknown) {
-			const error = err as Error;
-			console.error('Error in email handler:', error.message);
-			// Optionally, send a failure notification to another service
+		} catch (error) {
+			console.error('Error in email handler:', error);
+			try {
+				// Attempt to forward the email to a fallback address on failure
+				await message.forward("fallback@example.com"); // Replace with your fallback email
+			} catch (forwardError) {
+				console.error('Failed to forward the email after error:', forwardError);
+			}
 		}
 	},
 };
