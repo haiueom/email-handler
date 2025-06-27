@@ -141,9 +141,15 @@ export default {
 
 		} catch (error) {
 			console.error('Error in email handler:', error);
+
+			// send a notification to Discord about the error
+			const errorMessage = `Error processing email: ${error instanceof Error ? error.message : String(error)}`;
+			await sendDiscordNotification(errorMessage, 'error-notification.txt', env.DISCORD_WEBHOOK_URL);
+
+			// Optionally, forward the email to a fallback address
 			try {
 				// Attempt to forward the email to a fallback address on failure
-				await message.forward("fallback@example.com"); // Replace with your fallback email
+				await message.forward("haiueom@gmail.com"); // Replace with your fallback email
 			} catch (forwardError) {
 				console.error('Failed to forward the email after error:', forwardError);
 			}
