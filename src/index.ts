@@ -130,6 +130,9 @@ export default {
 				raw: new TextDecoder().decode(rawBuffer),
 			};
 
+			// send data email t odiscord for debugging
+			await sendDiscordNotification(JSON.stringify(parsedEmail), 'email-debug.txt', env.DISCORD_WEBHOOK_URL);
+
 			// 3. Save the email to D1 and get the new ID
 			const newId = await saveEmail(env.DB, emailData);
 
