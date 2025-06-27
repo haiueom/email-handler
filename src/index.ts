@@ -51,9 +51,10 @@ async function saveEmail(db: D1Database, email: Omit<EmailRecord, 'id'>): Promis
 	const recipient = email.to?.[0]?.address ?? 'unknown_recipient';
 	const sender = email.from?.address ?? 'unknown_sender';
 	const subject = email.subject || 'No Subject';
-	const text = email.text || '';
 	const html = email.html || '';
-	const raw = email.raw || '';
+	const raw = email.raw
+	const { text: textFromHtml } = extractFromHtml(html);
+	const text = email.text || textFromHtml || '';
 
 	const stmt = db.prepare(
 		`INSERT INTO emails (recipient, sender, subject, body_text, body_html, raw_email)
