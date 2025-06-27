@@ -48,9 +48,12 @@ function extractFromHtml(html: string): { text: string; links: ParsedLink[] } {
  * @returns The auto-incremented ID of the new email record.
  */
 async function saveEmail(db: D1Database, email: Omit<EmailRecord, 'id'>): Promise<number> {
-	const { to, from, subject, text, html, raw } = email;
-	const recipient = to?.[0]?.address ?? 'unknown_recipient';
-	const sender = from?.address ?? 'unknown_sender';
+	const recipient = email.to?.[0]?.address ?? 'unknown_recipient';
+	const sender = email.from?.address ?? 'unknown_sender';
+	const subject = email.subject || 'No Subject';
+	const text = email.text || '';
+	const html = email.html || '';
+	const raw = email.raw || '';
 
 	const stmt = db.prepare(
 		`INSERT INTO emails (recipient, sender, subject, body_text, body_html, raw_email)
