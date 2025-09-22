@@ -67,8 +67,8 @@ function createDiscordMessage(email: EmailRecord, extractedContent: ExtractedCon
         ? extractedContent.links.map(link => `- ${link.text}: ${link.href || 'No URL'}`).join('\n')
         : 'No links found.';
     return `
-📤 From: ${email.from.name} (${email.from.address})
-📥 To: ${email.to?.[0].name} (${email.to?.[0].address})
+📤 From: ${email.from.name ? email.from.name : "No Name"} (${email.from.address})
+📥 To: ${email.to?.[0].name ? email.to?.[0].name : "No Name"} (${email.to?.[0].address})
 🔐 ID: ${email.id}
 📅 Date: ${localDate} (UTC+8 / WITA)
 🧾 Subject: ${email.subject || '(No Subject)'}
