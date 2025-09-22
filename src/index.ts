@@ -3,22 +3,18 @@ import routeHandler from './routeHandler';
 
 /**
  * Main worker object that routes events to the appropriate handlers.
+ * This pattern directly exports the handlers from their respective modules,
+ * which is a cleaner approach when using a framework like Hono.
  */
 export default {
-    /**
-     * Handles web requests for the API and dashboard.
-     */
-    async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-        // Pass the request to the Hono app's fetch method
-        return routeHandler.fetch(request, env, ctx);
-    },
+  /**
+   * Handles web requests by exporting the Hono app's fetch handler directly.
+   */
+  fetch: routeHandler.fetch,
 
-    /**
-     * Handles incoming emails.
-     */
-    async email(message: ForwardableEmailMessage, env: Env, ctx: ExecutionContext): Promise<void> {
-        // Pass the email message to the email handler
-        await handleEmail(message, env);
-    },
+  /**
+   * Handles incoming emails by exporting the email handler directly.
+   */
+  email: handleEmail,
 };
 
