@@ -8,11 +8,12 @@
 		"cf-typegen": "wrangler types"
 	},
 	"dependencies": {
-		"cheerio": "^1.1.0",
+		"cheerio": "^1.1.2",
+		"hono": "^4.9.8",
 		"postal-mime": "^2.4.4"
 	},
 	"devDependencies": {
-		"typescript": "^5.8.3",
-		"wrangler": "^4.24.3"
+		"typescript": "^5.9.2",
+		"wrangler": "^4.37.0"
 	}
 }
