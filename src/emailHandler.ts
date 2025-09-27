@@ -72,8 +72,10 @@ function createDiscordMessage(email: EmailRecord, extractedContent: ExtractedCon
 🔐 ID: ${email.id}
 📅 Date: ${localDate} (UTC+8 / WITA)
 🧾 Subject: ${email.subject || '(No Subject)'}
+
 🔗 Links:
 ${linkLines}
+
 💌 Message:
 ${email.text || extractedContent.text || '(No text content)'}
   `.trim();
