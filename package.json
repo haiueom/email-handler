@@ -9,7 +9,7 @@
 	},
 	"dependencies": {
 		"cheerio": "^1.2.0",
-		"hono": "^4.10.3",
+		"hono": "^4.11.7",
 		"postal-mime": "^2.4.4"
 	},
 	"devDependencies": {
