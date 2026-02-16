@@ -11,8 +11,14 @@ const BLOCKED_EMAILS_SET = new Set(BLOCKED_EMAILS.map((e) => e.toLowerCase()));
  * tidak mencocokkan xza.com, melainkan hanya sub-domain dari za.com.
  */
 const globToRegex = (pattern: string): RegExp => {
-	const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&');
-	const wildcard = escaped.replace(/\\\*/g, '.*');
+	// 1. Escape semua karakter khusus regex KECUALI bintang (*)
+	// Karakter yang di-escape: . + ? ^ $ { } ( ) | [ ] \
+	const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+
+	// 2. Ubah bintang (*) menjadi (.*) agar berfungsi sebagai wildcard yang valid
+	const wildcard = escaped.replace(/\*/g, '.*');
+
+	// 3. Gabungkan dengan anchor ^ (awal) dan $ (akhir)
 	return new RegExp(`^${wildcard}$`, 'i');
 };
 
