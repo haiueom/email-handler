@@ -109,12 +109,12 @@ export async function handleEmail(message: ForwardableEmailMessage, env: Env): P
 			color: 0x3b82f6, // Warna biru Tailwind (blue-500)
 			fields: [
 				{
-					name: `📤 From ${parsedEmail.from?.name || 'Unknown'} \`(${parsedEmail.from?.address})\``,
+					name: `📤 From: ${parsedEmail.from?.name || 'Unknown'}`,
 					value: `\`\`\`${parsedEmail.from?.address}\`\`\``,
 					inline: false,
 				},
 				{
-					name: `📥 To ${parsedEmail.to?.[0].name || 'Unknown'} \`(${parsedEmail.to?.[0]?.address})\``,
+					name: `📥 To: ${parsedEmail.to?.[0].name || 'Unknown'}`,
 					value: `\`\`\`${parsedEmail.to?.[0]?.address}\`\`\``,
 					inline: false,
 				},
