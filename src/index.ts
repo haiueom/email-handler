@@ -7,14 +7,13 @@ import routeHandler from './routeHandler';
  * which is a cleaner approach when using a framework like Hono.
  */
 export default {
-  /**
-   * Handles web requests by exporting the Hono app's fetch handler directly.
-   */
-  fetch: routeHandler.fetch,
+	/**
+	 * Handles web requests by exporting the Hono app's fetch handler directly.
+	 */
+	fetch: routeHandler.fetch,
 
-  /**
-   * Handles incoming emails by exporting the email handler directly.
-   */
-  email: handleEmail,
+	/**
+	 * Handles incoming emails by exporting the email handler directly.
+	 */
+	email: handleEmail,
 };
-
