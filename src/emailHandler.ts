@@ -109,14 +109,14 @@ export async function handleEmail(message: ForwardableEmailMessage, env: Env): P
 			color: 0x3b82f6, // Warna biru Tailwind (blue-500)
 			fields: [
 				{
-					name: '📤 From',
-					value: `${parsedEmail.from?.name || 'Unknown'} \`<${parsedEmail.from?.address}>\``,
-					inline: true,
+					name: `📤 From ${parsedEmail.from?.name || 'Unknown'} \`(${parsedEmail.from?.address})\``,
+					value: `\`\`\`${parsedEmail.from?.address}\`\`\``,
+					inline: false,
 				},
 				{
-					name: '📥 To',
-					value: `\`<${parsedEmail.to?.[0]?.address}>\``,
-					inline: true,
+					name: `📥 To ${parsedEmail.to?.[0].name || 'Unknown'} \`(${parsedEmail.to?.[0]?.address})\``,
+					value: `\`\`\`${parsedEmail.to?.[0]?.address}\`\`\``,
+					inline: false,
 				},
 			],
 			footer: {
@@ -129,7 +129,7 @@ export async function handleEmail(message: ForwardableEmailMessage, env: Env): P
 		}
 
 		if (otpCode) {
-			embed.description = `**🔑 Detected OTP/Code:** \`${otpCode}\``;
+			embed.description = `**🔑 Detected OTP/Code:** \`\`\`${otpCode}\`\`\``;
 		}
 
 		if (linksText) {
