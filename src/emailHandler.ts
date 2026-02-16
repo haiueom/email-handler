@@ -1,24 +1,13 @@
-import PostalMime from 'postal-mime'; // Referensi: https://github.com/postalsys/emailjs-mime-parser
-import * as cheerio from 'cheerio'; // Referensi: https://cheerio.js.org/
+import PostalMime from 'postal-mime';
+import * as cheerio from 'cheerio';
 import { BLOCKED_EMAILS, BLOCK_PATTERNS } from './blocklist';
 import type { EmailRecord, ExtractedContent, ParsedLink } from './types';
 
-// Optimalisasi pencarian email yang diblokir menggunakan Set (O(1) lookup)
 const BLOCKED_EMAILS_SET = new Set(BLOCKED_EMAILS.map((e) => e.toLowerCase()));
 
-/**
- * Perbaikan Regex: Escape karakter khusus '.' agar pola *.za.com
- * tidak mencocokkan xza.com, melainkan hanya sub-domain dari za.com.
- */
 const globToRegex = (pattern: string): RegExp => {
-	// 1. Escape semua karakter khusus regex KECUALI bintang (*)
-	// Karakter yang di-escape: . + ? ^ $ { } ( ) | [ ] \
 	const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
-
-	// 2. Ubah bintang (*) menjadi (.*) agar berfungsi sebagai wildcard yang valid
 	const wildcard = escaped.replace(/\*/g, '.*');
-
-	// 3. Gabungkan dengan anchor ^ (awal) dan $ (akhir)
 	return new RegExp(`^${wildcard}$`, 'i');
 };
 
@@ -28,10 +17,6 @@ function isDomainBlocked(senderDomain: string): boolean {
 	return COMPILED_BLOCK_PATTERNS.some((regex) => regex.test(senderDomain));
 }
 
-/**
- * Membersihkan elemen HTML yang tidak perlu (script, style, dll)
- * untuk mendapatkan teks murni yang bersih.
- */
 function extractFromHtml(html: string): ExtractedContent {
 	const $ = cheerio.load(html);
 	$('style, script, head, title, meta, link, img, footer').remove();
@@ -41,29 +26,22 @@ function extractFromHtml(html: string): ExtractedContent {
 		.map(
 			(_, el): ParsedLink => ({
 				href: $(el).attr('href'),
-				text: $(el).text().trim() || 'Link',
+				// Batasi panjang teks link agar tidak merusak layout Discord
+				text: ($(el).text().trim() || 'Link').substring(0, 50),
 			}),
 		)
 		.get()
-		.filter((l) => l.href?.startsWith('http')); // Pastikan link valid
+		.filter((l) => l.href?.startsWith('http'));
 
 	return { text, links };
 }
 
-/**
- * Fitur Baru: Mendeteksi kode OTP atau verifikasi (4-8 digit angka)
- * dari teks email menggunakan Regex.
- */
 function extractOTP(text: string): string | null {
 	const otpRegex = /\b\d{4,8}\b/g;
 	const matches = text.match(otpRegex);
-	// Mengambil kecocokan terakhir karena seringkali format tanggal/waktu muncul di awal
 	return matches ? matches[matches.length - 1] : null;
 }
 
-/**
- * Menyimpan email ke D1 Database dan mengembalikan ID baris yang baru disisipkan.
- */
 async function saveEmail(db: D1Database, email: Omit<EmailRecord, 'id'>, extractedText: string): Promise<number> {
 	const result = await db
 		.prepare(
@@ -90,22 +68,19 @@ export async function handleEmail(message: ForwardableEmailMessage, env: Env): P
 	try {
 		const rawBuffer = await new Response(message.raw).arrayBuffer();
 
-		// Parsing MIME email
 		const parser = new PostalMime();
 		const parsedEmail = await parser.parse(rawBuffer);
 		const sender = parsedEmail.from?.address?.toLowerCase();
 
-		// Validasi Blocklist
 		if (sender) {
 			const domain = sender.split('@')[1];
 			if (BLOCKED_EMAILS_SET.has(sender) || isDomainBlocked(domain)) {
 				console.warn(`Blocked sender: ${sender}`);
 				message.setReject('Policy: Sender blocked by user policy.');
-				return; // Hentikan proses jika diblokir
+				return;
 			}
 		}
 
-		// Ekstraksi konten
 		const extracted = extractFromHtml(parsedEmail.html || '');
 		const fullContent = parsedEmail.text || extracted.text;
 		const otpCode = extractOTP(fullContent);
@@ -115,35 +90,67 @@ export async function handleEmail(message: ForwardableEmailMessage, env: Env): P
 			raw: new TextDecoder().decode(rawBuffer),
 		};
 
-		// Simpan ke DB
 		const newId = await saveEmail(env.DB, emailData, extracted.text);
-
-		// Format waktu Indonesia Tengah (WITA) karena lokasi kita di Bali
 		const dateStr = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Makassar' });
 
-		// Notifikasi Discord
-		const discordMessage = [
-			`📥 **New Email Received** [#${newId}]`,
-			`**From**: ${parsedEmail.from?.name || 'Unknown'} \`<${parsedEmail.from?.address}>\``,
-			`**To**: \`<${parsedEmail.to?.[0]?.address}>\``,
-			`**Subject**: ${parsedEmail.subject || '(No Subject)'}`,
-			`**Date**: ${dateStr} WITA`,
-			otpCode ? `\n🔑 **Detected OTP/Code: \`${otpCode}\`**` : '',
-			`\n📝 **Preview**:\n> ${fullContent.substring(0, 200).replace(/\n/g, '\n> ')}...`,
-			// Ganti bagian ini:
-			env.DASHBOARD_URL ? `\n🔗 [Open Email](${env.DASHBOARD_URL}?id=${newId})` : '',
-		]
-			.filter(Boolean)
-			.join('\n');
+		// Menyusun format Link untuk Discord (maksimal 5 link agar Embed tidak terlalu panjang)
+		let linksText = '';
+		if (extracted.links && extracted.links.length > 0) {
+			const topLinks = extracted.links.slice(0, 5);
+			linksText = topLinks.map((l) => `- [${l.text}](${l.href})`).join('\n');
+			if (extracted.links.length > 5) {
+				linksText += `\n*...dan ${extracted.links.length - 5} tautan lainnya*`;
+			}
+		}
 
-		const formData = new FormData();
-		formData.append('content', discordMessage);
+		// Menyusun Embed Discord
+		const embed: any = {
+			title: (parsedEmail.subject || '(No Subject)').substring(0, 256), // Max 256 karakter
+			color: 0x3b82f6, // Warna biru Tailwind (blue-500)
+			fields: [
+				{
+					name: '📤 From',
+					value: `${parsedEmail.from?.name || 'Unknown'} \`<${parsedEmail.from?.address}>\``,
+					inline: true,
+				},
+				{
+					name: '📥 To',
+					value: `\`<${parsedEmail.to?.[0]?.address}>\``,
+					inline: true,
+				},
+			],
+			footer: {
+				text: `ID: #${newId} • ${dateStr} WITA`,
+			},
+		};
 
-		await fetch(env.DISCORD_WEBHOOK_URL, { method: 'POST', body: formData });
+		if (env.DASHBOARD_URL) {
+			embed.url = `${env.DASHBOARD_URL}?id=${newId}`; // Judul embed akan menjadi link yang bisa diklik
+		}
+
+		if (otpCode) {
+			embed.description = `**🔑 Detected OTP/Code:** \`${otpCode}\``;
+		}
+
+		if (linksText) {
+			embed.fields.push({
+				name: '🔗 Links',
+				value: linksText.substring(0, 1024), // Limit field value Discord (1024 karakter)
+				inline: false,
+			});
+		}
+
+		// Mengirim JSON ke Discord Webhook
+		await fetch(env.DISCORD_WEBHOOK_URL, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify({ embeds: [embed] }),
+		});
 	} catch (error) {
 		console.error('Handler Error:', error);
 
-		// Fallback ke email pribadi menggunakan environment variables agar lebih aman
 		if (env.FALLBACK_EMAIL) {
 			await message.forward(env.FALLBACK_EMAIL);
 		} else {
