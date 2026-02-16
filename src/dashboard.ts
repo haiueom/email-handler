@@ -16,7 +16,7 @@ export const getDashboardHtml = () => `
             <div id="nav-actions" class="flex gap-2">
                 <input type="text" id="searchInput" placeholder="Cari email..."
                     class="px-4 py-2 border rounded-md text-sm outline-none focus:ring-2 focus:ring-blue-500 w-48 sm:w-64 transition-all">
-                <button onclick="loadEmails()" class="bg-blue-50 text-blue-600 px-4 py-2 rounded-md hover:bg-blue-100 text-sm font-medium transition">
+                <button onclick="loadEmails(1)" class="bg-blue-50 text-blue-600 px-4 py-2 rounded-md hover:bg-blue-100 text-sm font-medium transition">
                     Refresh
                 </button>
             </div>
@@ -28,20 +28,27 @@ export const getDashboardHtml = () => `
             <div id="email-list" class="grid gap-3">
                 <div class="text-center py-10 text-gray-400">Memuat email...</div>
             </div>
+
+            <div id="pagination" class="mt-6 flex justify-center items-center gap-4 hidden">
+                <button id="btn-prev" onclick="changePage(-1)" class="px-4 py-2 bg-white border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium text-sm">
+                    &laquo; Prev
+                </button>
+                <span id="page-info" class="text-sm text-gray-600 font-medium">Halaman 1 / 1</span>
+                <button id="btn-next" onclick="changePage(1)" class="px-4 py-2 bg-white border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium text-sm">
+                    Next &raquo;
+                </button>
+            </div>
         </div>
 
         <div id="view-detail" class="hidden bg-white rounded-xl shadow-sm border overflow-hidden">
             <div class="bg-gray-50 border-b p-4 flex justify-between items-center sticky top-0">
                 <button onclick="closeDetail()" class="flex items-center gap-2 text-gray-600 hover:text-blue-600 font-medium transition">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-                    Kembali
+                    &larr; Kembali
                 </button>
-                <button id="btn-delete-detail" class="text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-md text-sm font-medium transition flex items-center gap-1">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                <button id="btn-delete-detail" class="text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-md text-sm font-medium transition">
                     Hapus
                 </button>
             </div>
-
             <div class="p-6 border-b">
                 <h2 id="detail-subject" class="text-2xl font-bold text-gray-900 mb-4">Memuat...</h2>
                 <div class="flex justify-between items-center text-sm">
@@ -52,27 +59,32 @@ export const getDashboardHtml = () => `
                     <div class="text-right text-gray-500" id="detail-date">-</div>
                 </div>
             </div>
-
             <div class="bg-white">
-                <iframe id="detail-frame" class="w-full min-h-[600px] border-none"
-                    sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin">
-                </iframe>
+                <iframe id="detail-frame" class="w-full min-h-[600px] border-none" sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin"></iframe>
             </div>
         </div>
     </main>
 
     <script>
-        let allEmails = [];
+        let currentPage = 1;
+        let totalPages = 1;
         const viewList = document.getElementById('view-list');
         const viewDetail = document.getElementById('view-detail');
         const navActions = document.getElementById('nav-actions');
+        const searchInput = document.getElementById('searchInput');
 
-        async function loadEmails() {
+        async function loadEmails(page = currentPage) {
+            currentPage = page;
             const container = document.getElementById('email-list');
+            const searchVal = encodeURIComponent(searchInput.value.trim());
+
             try {
-                const res = await fetch('/api/emails');
-                allEmails = await res.json();
-                renderEmails(allEmails);
+                const res = await fetch(\`/api/emails?page=\${page}&limit=15&search=\${searchVal}\`);
+                const json = await res.json();
+
+                totalPages = json.meta.totalPages;
+                renderEmails(json.data);
+                renderPagination();
             } catch (err) {
                 container.innerHTML = '<p class="text-red-500 text-center py-10">Gagal memuat data email.</p>';
             }
@@ -80,8 +92,9 @@ export const getDashboardHtml = () => `
 
         function renderEmails(emails) {
             const container = document.getElementById('email-list');
-            if (emails.length === 0) {
-                container.innerHTML = '<div class="bg-white p-10 text-center rounded-xl shadow-sm text-gray-500">Inbox kosong.</div>';
+            if (!emails || emails.length === 0) {
+                container.innerHTML = '<div class="bg-white p-10 text-center rounded-xl shadow-sm text-gray-500">Data tidak ditemukan.</div>';
+                document.getElementById('pagination').classList.add('hidden');
                 return;
             }
             container.innerHTML = emails.map(e => \`
@@ -100,75 +113,72 @@ export const getDashboardHtml = () => `
             \`).join('');
         }
 
-        // Fitur Pencarian List
-        document.getElementById('searchInput').addEventListener('input', (e) => {
-            const term = e.target.value.toLowerCase();
-            const filtered = allEmails.filter(mail =>
-                (mail.subject && mail.subject.toLowerCase().includes(term)) ||
-                (mail.sender && mail.sender.toLowerCase().includes(term))
-            );
-            renderEmails(filtered);
+        function renderPagination() {
+            const pagination = document.getElementById('pagination');
+            if (totalPages <= 1) {
+                pagination.classList.add('hidden');
+                return;
+            }
+            pagination.classList.remove('hidden');
+
+            document.getElementById('page-info').textContent = \`Halaman \${currentPage} / \${totalPages}\`;
+            document.getElementById('btn-prev').disabled = currentPage === 1;
+            document.getElementById('btn-next').disabled = currentPage === totalPages;
+        }
+
+        function changePage(direction) {
+            const newPage = currentPage + direction;
+            if (newPage >= 1 && newPage <= totalPages) {
+                loadEmails(newPage);
+            }
+        }
+
+        // Fitur Pencarian dengan Debounce (Server-Side)
+        let searchTimeout;
+        searchInput.addEventListener('input', () => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                loadEmails(1); // Reset ke halaman 1 saat mencari
+            }, 500); // Tunggu 500ms setelah mengetik
         });
 
-        // BUKA DETAIL EMAIL
+        // BUKA & TUTUP DETAIL (Kode Tetap Sama)
         async function openDetail(id) {
             viewList.classList.add('hidden');
             navActions.classList.add('hidden');
             viewDetail.classList.remove('hidden');
-
-            document.getElementById('detail-subject').textContent = 'Memuat isi email...';
-            document.getElementById('detail-frame').srcdoc = '<div style="font-family:sans-serif; padding:20px; color:#666;">Memuat konten...</div>';
-
+            document.getElementById('detail-subject').textContent = 'Memuat...';
+            document.getElementById('detail-frame').srcdoc = 'Memuat...';
             try {
                 const res = await fetch(\`/api/emails/\${id}\`);
                 const email = await res.json();
-
                 document.getElementById('detail-subject').textContent = email.subject || '(Tanpa Subjek)';
                 document.getElementById('detail-sender').textContent = email.sender;
                 document.getElementById('detail-recipient').textContent = email.recipient;
                 document.getElementById('detail-date').textContent = new Date(email.received_at).toLocaleString('id-ID');
-
-                // Set action tombol hapus di dalam detail view
-                const btnDelete = document.getElementById('btn-delete-detail');
-                btnDelete.onclick = () => { deleteEmail(id, true); };
-
-                // Prioritaskan HTML, jika tidak ada gunakan raw text dengan format PRE
-                let content = email.body_html;
-                if (!content) {
-                    content = \`<pre style="font-family: sans-serif; white-space: pre-wrap; word-wrap: break-word; padding: 20px;">\${email.body_text}</pre>\`;
-                }
-                document.getElementById('detail-frame').srcdoc = content;
-
-            } catch (err) {
-                document.getElementById('detail-subject').textContent = 'Error memuat email';
-            }
+                document.getElementById('btn-delete-detail').onclick = () => { deleteEmail(id, true); };
+                document.getElementById('detail-frame').srcdoc = email.body_html || \`<pre style="padding:20px;">\${email.body_text}</pre>\`;
+            } catch (err) {}
         }
 
-        // TUTUP DETAIL EMAIL
         function closeDetail() {
             viewDetail.classList.add('hidden');
             viewList.classList.remove('hidden');
             navActions.classList.remove('hidden');
-            // Bersihkan iframe agar video/audio di dalam email (jika ada) berhenti memutar
             document.getElementById('detail-frame').srcdoc = '';
         }
 
-        // FUNGSI HAPUS
         async function deleteEmail(id, closeView = false) {
-            if (!confirm('Hapus email ini secara permanen?')) return;
-
+            if (!confirm('Hapus email ini?')) return;
             await fetch(\`/api/emails/\${id}\`, { method: 'DELETE' });
-
             if (closeView) closeDetail();
-            loadEmails();
+            loadEmails(currentPage); // Refresh di halaman yang sama
         }
 
         async function init() {
-            await loadEmails(); // Tunggu sampai list email dimuat
-
+            await loadEmails();
             const urlParams = new URLSearchParams(window.location.search);
             const emailId = urlParams.get('id');
-
             if (emailId) {
                 window.history.replaceState({}, document.title, window.location.pathname);
                 openDetail(emailId);
@@ -176,12 +186,6 @@ export const getDashboardHtml = () => `
         }
 
         init();
-
-        setInterval(() => {
-            if (!viewList.classList.contains('hidden')) {
-                loadEmails();
-            }
-        }, 30000);
     </script>
 </body>
 </html>
