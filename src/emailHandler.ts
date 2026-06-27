@@ -36,17 +36,11 @@ function extractFromHtml(html: string): ExtractedContent {
 	return { text, links };
 }
 
-function extractOTP(text: string): string | null {
-	const otpRegex = /\b\d{4,8}\b/g;
-	const matches = text.match(otpRegex);
-	return matches ? matches[matches.length - 1] : null;
-}
-
 async function saveEmail(db: D1Database, email: Omit<EmailRecord, 'id'>, extractedText: string): Promise<number> {
 	const result = await db
 		.prepare(
 			`INSERT INTO emails (recipient, sender, subject, body_text, body_html, raw_email)
-		 VALUES (?, ?, ?, ?, ?, ?)`,
+		VALUES (?, ?, ?, ?, ?, ?)`,
 		)
 		.bind(
 			email.to?.[0]?.address ?? 'unknown',
@@ -82,8 +76,8 @@ export async function handleEmail(message: ForwardableEmailMessage, env: Env): P
 		}
 
 		const extracted = extractFromHtml(parsedEmail.html || '');
-		const fullContent = parsedEmail.text || extracted.text;
-		const otpCode = extractOTP(fullContent);
+		// Ambil isi teks untuk disematkan dalam email.txt nanti
+		const fullContent = parsedEmail.text || extracted.text || '(Email tidak memiliki isi teks)';
 
 		const emailData: Omit<EmailRecord, 'id'> = {
 			...parsedEmail,
@@ -91,7 +85,7 @@ export async function handleEmail(message: ForwardableEmailMessage, env: Env): P
 		};
 
 		const newId = await saveEmail(env.DB, emailData, extracted.text);
-		const dateStr = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Makassar' });
+		const dateStr = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Bali' });
 
 		// Menyusun format Link untuk Discord (maksimal 5 link agar Embed tidak terlalu panjang)
 		let linksText = '';
@@ -125,28 +119,33 @@ export async function handleEmail(message: ForwardableEmailMessage, env: Env): P
 		};
 
 		if (env.DASHBOARD_URL) {
-			embed.url = `${env.DASHBOARD_URL}?id=${newId}`; // Judul embed akan menjadi link yang bisa diklik
-		}
-
-		if (otpCode) {
-			embed.description = `**🔑 Detected OTP/Code:** \`\`\`${otpCode}\`\`\``;
+			embed.url = `${env.DASHBOARD_URL}?id=${newId}`;
 		}
 
 		if (linksText) {
 			embed.fields.push({
 				name: '🔗 Links',
-				value: linksText.substring(0, 1024), // Limit field value Discord (1024 karakter)
+				value: linksText.substring(0, 1024),
 				inline: false,
 			});
 		}
 
-		// Mengirim JSON ke Discord Webhook
+		// Konfigurasi Payload JSON dan Lampiran File via FormData
+		const formData = new FormData();
+
+		// 1. Masukkan embed sebagai 'payload_json'
+		formData.append('payload_json', JSON.stringify({ embeds: [embed] }));
+
+		// 2. Buat Blob dari isi email dan masukkan sebagai attachment
+		const textBlob = new Blob([fullContent], { type: 'text/plain; charset=utf-8' });
+		formData.append('files[0]', textBlob, 'email.txt');
+
+		// Mengirim via Discord Webhook menggunakan FormData
 		await fetch(env.DISCORD_WEBHOOK_URL, {
 			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify({ embeds: [embed] }),
+			// Ingat: Jangan set 'Content-Type' header saat menggunakan FormData
+			// Fetch API otomatis akan membuat boundary untuk multipart/form-data
+			body: formData,
 		});
 	} catch (error) {
 		console.error('Handler Error:', error);
