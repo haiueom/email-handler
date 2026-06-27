@@ -85,7 +85,7 @@ export async function handleEmail(message: ForwardableEmailMessage, env: Env): P
 		};
 
 		const newId = await saveEmail(env.DB, emailData, extracted.text);
-		const dateStr = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Bali' });
+		const dateStr = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Makassar' });
 
 		// Menyusun format Link untuk Discord (maksimal 5 link agar Embed tidak terlalu panjang)
 		let linksText = '';
