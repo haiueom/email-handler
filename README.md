@@ -12,8 +12,8 @@ A serverless Cloudflare Email Worker that parses incoming emails, stores them in
 - **Blocklist**: Rejects emails from specific addresses or domain patterns (supports `*` wildcard) before processing.
 - **D1 storage**: Stores full email data (sender, recipient, subject, body text, body HTML, raw MIME) in a Cloudflare D1 database.
 - **Discord notification**: Posts a human-readable `.txt` summary to a Discord webhook on each received email.
-- **Web dashboard**: Paginated, searchable email list with per-email detail and delete support.
-- **Dual authentication**: Cloudflare Access (JWT) takes priority; falls back to HTTP Basic Auth.
+- **Web dashboard**: Paginated, searchable email list with per-email detail view, single delete, and multi-select bulk delete.
+- **Cloudflare Access authentication**: Dashboard is protected exclusively by Cloudflare Access (JWT). No other auth method is accepted.
 
 ## How It Works
 
@@ -32,13 +32,11 @@ On each incoming email:
 | --------------------- | ------------------------------------------------------- |
 | `DISCORD_WEBHOOK_URL` | Discord webhook URL for email notifications             |
 | `DASHBOARD_URL`       | Public URL of the deployed worker                       |
-| `DASHBOARD_USER`      | Basic Auth username for the dashboard                   |
-| `DASHBOARD_PASS`      | Basic Auth password for the dashboard                   |
 | `FALLBACK_EMAIL`      | Fallback recipient address                              |
-| `TEAM_DOMAIN`         | Cloudflare Access team domain (enables JWT auth)        |
-| `AUDIENCE_TAG`        | Cloudflare Access audience tag (required with JWT auth) |
+| `TEAM_DOMAIN`         | Cloudflare Access team domain (required)                |
+| `AUDIENCE_TAG`        | Cloudflare Access audience tag (required)               |
 
-> If `TEAM_DOMAIN` and `AUDIENCE_TAG` are set, Cloudflare Access JWT auth is used and Basic Auth is ignored.
+> Both `TEAM_DOMAIN` and `AUDIENCE_TAG` are required. The dashboard returns `503` if either is missing.
 
 ### `wrangler.jsonc`
 
@@ -71,7 +69,8 @@ The dashboard is served at `/` and requires authentication. It provides:
 
 - Paginated email list with server-side search (by subject or sender)
 - Per-email detail view with sanitized HTML rendering
-- Delete individual emails
+- Select multiple emails with checkboxes and bulk delete in one action
+- Delete individual emails from the list or detail view
 
 ## Scripts
 

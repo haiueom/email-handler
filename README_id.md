@@ -12,8 +12,8 @@ Sebuah Cloudflare Email Worker serverless yang mengurai email masuk, menyimpanny
 - **Blocklist**: Menolak email dari alamat tertentu atau pola domain (mendukung wildcard `*`) sebelum diproses.
 - **Penyimpanan D1**: Menyimpan data email lengkap (pengirim, penerima, subjek, body teks, body HTML, MIME mentah) di database Cloudflare D1.
 - **Notifikasi Discord**: Mengirimkan ringkasan `.txt` yang mudah dibaca ke Discord webhook untuk setiap email yang diterima.
-- **Dasbor web**: Daftar email dengan paginasi dan pencarian, lengkap dengan tampilan detail dan fitur hapus per email.
-- **Autentikasi ganda**: Cloudflare Access (JWT) diprioritaskan; jika tidak dikonfigurasi, menggunakan HTTP Basic Auth.
+- **Dasbor web**: Daftar email dengan paginasi dan pencarian, lengkap dengan tampilan detail, hapus satu email, dan hapus banyak email sekaligus (multi-select).
+- **Autentikasi Cloudflare Access**: Dasbor dilindungi eksklusif oleh Cloudflare Access (JWT). Tidak ada metode autentikasi lain yang diterima.
 
 ## Cara Kerja
 
@@ -32,13 +32,11 @@ Pada setiap email masuk:
 | --------------------- | ------------------------------------------------------------ |
 | `DISCORD_WEBHOOK_URL` | URL Discord webhook untuk notifikasi email                   |
 | `DASHBOARD_URL`       | URL publik worker yang sudah di-deploy                       |
-| `DASHBOARD_USER`      | Username Basic Auth untuk dasbor                             |
-| `DASHBOARD_PASS`      | Password Basic Auth untuk dasbor                             |
 | `FALLBACK_EMAIL`      | Alamat email penerima cadangan                               |
-| `TEAM_DOMAIN`         | Team domain Cloudflare Access (mengaktifkan autentikasi JWT) |
-| `AUDIENCE_TAG`        | Audience tag Cloudflare Access (wajib jika pakai JWT)        |
+| `TEAM_DOMAIN`         | Team domain Cloudflare Access (wajib)                        |
+| `AUDIENCE_TAG`        | Audience tag Cloudflare Access (wajib)                       |
 
-> Jika `TEAM_DOMAIN` dan `AUDIENCE_TAG` diisi, autentikasi JWT Cloudflare Access digunakan dan Basic Auth diabaikan.
+> `TEAM_DOMAIN` dan `AUDIENCE_TAG` keduanya wajib diisi. Dasbor mengembalikan `503` jika salah satunya tidak dikonfigurasi.
 
 ### `wrangler.jsonc`
 
@@ -71,7 +69,8 @@ Dasbor tersedia di `/` dan memerlukan autentikasi. Fitur yang tersedia:
 
 - Daftar email dengan paginasi dan pencarian server-side (berdasarkan subjek atau pengirim)
 - Tampilan detail per email dengan rendering HTML yang sudah disanitasi
-- Hapus email individual
+- Pilih beberapa email sekaligus dengan checkbox dan hapus dalam satu aksi (bulk delete)
+- Hapus email individual dari daftar maupun tampilan detail
 
 ## Scripts
 

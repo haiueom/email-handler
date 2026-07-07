@@ -1,5 +1,4 @@
 import { Hono } from 'hono';
-import type { Context } from 'hono';
 import * as cheerio from 'cheerio';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { getDashboardHtml } from './dashboard';
@@ -35,9 +34,7 @@ function sanitizeHtml(html: string | null | undefined): string {
 	$('*').each((_, el) => {
 		for (const name of Object.keys($(el).attr() ?? {})) {
 			const norm = name.toLowerCase();
-			if (norm.startsWith('on') || DANGEROUS_ATTRS.has(norm)) {
-				$(el).removeAttr(name);
-			}
+			if (norm.startsWith('on') || DANGEROUS_ATTRS.has(norm)) $(el).removeAttr(name);
 		}
 		const href = $(el).attr('href');
 		if (href && !/^(https?:|mailto:)/i.test(href)) $(el).removeAttr('href');
@@ -46,51 +43,27 @@ function sanitizeHtml(html: string | null | undefined): string {
 }
 
 // ---------------------------------------------------------------------------
-// Auth middleware
+// Auth middleware — Cloudflare Access (JWT) only
 // ---------------------------------------------------------------------------
 
-function isBasicAuthValid(authorization: string | undefined, username: string, password: string): boolean {
-	if (!authorization?.startsWith('Basic ')) return false;
-	try {
-		const decoded = atob(authorization.slice(6));
-		const sep = decoded.indexOf(':');
-		if (sep < 0) return false;
-		return decoded.slice(0, sep) === username && decoded.slice(sep + 1) === password;
-	} catch {
-		return false;
-	}
-}
-
-const unauthorized = (c: Context<AppBindings>) =>
-	c.html('<h1>401 Unauthorized</h1>', 401, {
-		'WWW-Authenticate': 'Basic realm="Email Dashboard", charset="UTF-8"',
-	});
-
 app.use('/*', async (c, next) => {
-	// Cloudflare Access (JWT) — takes priority
-	if (c.env.TEAM_DOMAIN && c.env.AUDIENCE_TAG) {
-		const token = c.req.header('cf-access-jwt-assertion');
-		if (!token) return c.html('<h1>401 Unauthorized</h1>', 401);
-		try {
-			const JWKS = createRemoteJWKSet(new URL(`${c.env.TEAM_DOMAIN}/cdn-cgi/access/certs`));
-			const { payload } = await jwtVerify(token, JWKS, { audience: c.env.AUDIENCE_TAG });
-			c.set('userEmail', payload.email as string);
-			return await next();
-		} catch {
-			return c.html('<h1>403 Forbidden</h1>', 403);
-		}
+	if (!c.env.TEAM_DOMAIN || !c.env.AUDIENCE_TAG) {
+		return c.html('<h1>503 Service Unavailable</h1><p>Dashboard authentication is not configured.</p>', 503);
 	}
 
-	// HTTP Basic Auth fallback
-	if (c.env.DASHBOARD_USER && c.env.DASHBOARD_PASS) {
-		if (!isBasicAuthValid(c.req.header('Authorization'), c.env.DASHBOARD_USER, c.env.DASHBOARD_PASS)) {
-			return unauthorized(c);
-		}
-		c.set('userEmail', c.env.DASHBOARD_USER);
+	const token = c.req.header('cf-access-jwt-assertion');
+	if (!token) {
+		return c.html('<h1>401 Unauthorized</h1>', 401);
+	}
+
+	try {
+		const JWKS = createRemoteJWKSet(new URL(`${c.env.TEAM_DOMAIN}/cdn-cgi/access/certs`));
+		const { payload } = await jwtVerify(token, JWKS, { audience: c.env.AUDIENCE_TAG });
+		c.set('userEmail', payload.email as string);
 		return await next();
+	} catch {
+		return c.html('<h1>403 Forbidden</h1>', 403);
 	}
-
-	return c.html('<h1>Dashboard authentication is not configured</h1>', 503);
 });
 
 // ---------------------------------------------------------------------------
@@ -159,8 +132,6 @@ app.delete('/api/emails/:id', async (c) => {
 	}
 });
 
-export default app;
-
 app.delete('/api/emails', async (c) => {
 	let ids: unknown;
 	try {
@@ -185,3 +156,5 @@ app.delete('/api/emails', async (c) => {
 		return c.json({ error: 'Internal server error' }, 500);
 	}
 });
+
+export default app;
