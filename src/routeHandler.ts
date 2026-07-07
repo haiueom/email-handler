@@ -160,3 +160,28 @@ app.delete('/api/emails/:id', async (c) => {
 });
 
 export default app;
+
+app.delete('/api/emails', async (c) => {
+	let ids: unknown;
+	try {
+		ids = await c.req.json();
+	} catch {
+		return c.json({ error: 'Invalid JSON body' }, 400);
+	}
+
+	if (!Array.isArray(ids) || ids.length === 0 || !ids.every((id) => Number.isInteger(id) && id > 0)) {
+		return c.json({ error: 'Body must be a non-empty array of positive integers' }, 400);
+	}
+
+	const MAX_BULK = 100;
+	if (ids.length > MAX_BULK) return c.json({ error: `Cannot delete more than ${MAX_BULK} emails at once` }, 400);
+
+	try {
+		const placeholders = ids.map(() => '?').join(', ');
+		const result = await c.env.DB.prepare(`DELETE FROM emails WHERE id IN (${placeholders})`).bind(...ids).run();
+		return c.json({ success: true, deleted: result.meta.changes });
+	} catch (err) {
+		console.error('DELETE /api/emails error:', err);
+		return c.json({ error: 'Internal server error' }, 500);
+	}
+});

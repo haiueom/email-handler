@@ -12,11 +12,21 @@ export const getDashboardHtml = () => `<!DOCTYPE html>
             <h1 class="text-xl font-extrabold text-blue-600 flex items-center gap-2">
                 📬 <span class="hidden sm:inline">Email Handler</span>
             </h1>
+            <!-- Default nav actions -->
             <div id="nav-actions" class="flex gap-2">
                 <input type="text" id="searchInput" placeholder="Search emails..."
                     class="px-4 py-2 border rounded-md text-sm outline-none focus:ring-2 focus:ring-blue-500 w-48 sm:w-64 transition-all">
                 <button onclick="loadEmails(1)" class="bg-blue-50 text-blue-600 px-4 py-2 rounded-md hover:bg-blue-100 text-sm font-medium transition">
                     Refresh
+                </button>
+            </div>
+            <!-- Selection toolbar (shown when ≥1 email selected) -->
+            <div id="select-toolbar" class="hidden items-center gap-3">
+                <span id="select-count" class="text-sm font-medium text-gray-600">0 selected</span>
+                <button onclick="selectAll()" class="text-sm text-blue-600 hover:underline font-medium">Select all</button>
+                <button onclick="clearSelection()" class="text-sm text-gray-500 hover:underline">Deselect all</button>
+                <button onclick="deleteSelected()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium transition">
+                    🗑 Delete selected
                 </button>
             </div>
         </div>
@@ -66,17 +76,65 @@ export const getDashboardHtml = () => `<!DOCTYPE html>
     <script>
         let currentPage = 1;
         let totalPages = 1;
-        const viewList = document.getElementById('view-list');
-        const viewDetail = document.getElementById('view-detail');
-        const navActions = document.getElementById('nav-actions');
-        const searchInput = document.getElementById('searchInput');
+        let currentEmails = [];       // emails on the current page
+        const selectedIds = new Set(); // IDs checked by the user
+
+        const viewList    = document.getElementById('view-list');
+        const viewDetail  = document.getElementById('view-detail');
+        const navActions  = document.getElementById('nav-actions');
+        const selectToolbar = document.getElementById('select-toolbar');
+        const selectCount   = document.getElementById('select-count');
+        const searchInput   = document.getElementById('searchInput');
 
         const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
         }[c]));
 
+        // -----------------------------------------------------------------------
+        // Selection helpers
+        // -----------------------------------------------------------------------
+
+        function updateToolbar() {
+            const count = selectedIds.size;
+            if (count > 0) {
+                navActions.classList.add('hidden');
+                selectToolbar.classList.remove('hidden');
+                selectToolbar.classList.add('flex');
+                selectCount.textContent = \`\${count} selected\`;
+            } else {
+                selectToolbar.classList.add('hidden');
+                selectToolbar.classList.remove('flex');
+                navActions.classList.remove('hidden');
+            }
+            // Sync checkboxes in the list
+            document.querySelectorAll('.email-checkbox').forEach((cb) => {
+                cb.checked = selectedIds.has(Number(cb.dataset.id));
+            });
+        }
+
+        function toggleSelect(id, checked) {
+            if (checked) selectedIds.add(id);
+            else selectedIds.delete(id);
+            updateToolbar();
+        }
+
+        function selectAll() {
+            currentEmails.forEach((e) => selectedIds.add(e.id));
+            updateToolbar();
+        }
+
+        function clearSelection() {
+            selectedIds.clear();
+            updateToolbar();
+        }
+
+        // -----------------------------------------------------------------------
+        // Load & render
+        // -----------------------------------------------------------------------
+
         async function loadEmails(page = currentPage) {
             currentPage = page;
+            clearSelection();
             const container = document.getElementById('email-list');
             container.innerHTML = '<div class="text-center py-10 text-gray-400">Loading...</div>';
             const search = encodeURIComponent(searchInput.value.trim());
@@ -86,7 +144,8 @@ export const getDashboardHtml = () => `<!DOCTYPE html>
                 if (!res.ok) throw new Error(\`HTTP \${res.status}\`);
                 const json = await res.json();
                 totalPages = json.meta.totalPages;
-                renderEmails(json.data);
+                currentEmails = json.data;
+                renderEmails(currentEmails);
                 renderPagination();
             } catch (err) {
                 container.innerHTML = \`<p class="text-red-500 text-center py-10">Failed to load emails: \${escapeHtml(err.message)}</p>\`;
@@ -101,16 +160,21 @@ export const getDashboardHtml = () => `<!DOCTYPE html>
                 return;
             }
             container.innerHTML = emails.map((e) => {
-                const id = Number.parseInt(e.id, 10);
+                const id = Number(e.id);
                 if (!Number.isSafeInteger(id) || id < 1) return '';
-                const sender = e.sender || 'Unknown';
+                const sender  = e.sender || 'Unknown';
                 const subject = e.subject || '(No Subject)';
-                const date = new Date(e.received_at).toLocaleDateString('en-US', {
+                const date    = new Date(e.received_at).toLocaleDateString('en-US', {
                     day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
                 });
+                const isChecked = selectedIds.has(id) ? 'checked' : '';
                 return \`
-                <div onclick="openDetail(\${id})" class="bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:border-blue-300 hover:shadow-md transition cursor-pointer flex gap-4 items-center">
-                    <div class="flex-none w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold uppercase">
+                <div class="email-row bg-white rounded-lg shadow-sm border border-gray-100 hover:border-blue-300 hover:shadow-md transition flex gap-4 items-center px-4 py-3 cursor-pointer"
+                     data-id="\${id}" onclick="handleRowClick(event, \${id})">
+                    <input type="checkbox" class="email-checkbox flex-none w-4 h-4 accent-blue-500 cursor-pointer"
+                           data-id="\${id}" \${isChecked}
+                           onclick="event.stopPropagation(); toggleSelect(\${id}, this.checked)">
+                    <div class="flex-none w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold uppercase select-none">
                         \${escapeHtml(sender.charAt(0))}
                     </div>
                     <div class="flex-1 min-w-0">
@@ -122,6 +186,12 @@ export const getDashboardHtml = () => `<!DOCTYPE html>
                     </div>
                 </div>\`;
             }).join('');
+        }
+
+        // Click on row body → open detail; click on checkbox → toggle selection
+        function handleRowClick(event, id) {
+            // Checkbox clicks are handled by their own onclick (stopPropagation)
+            openDetail(id);
         }
 
         function renderPagination() {
@@ -144,26 +214,53 @@ export const getDashboardHtml = () => `<!DOCTYPE html>
             searchTimeout = setTimeout(() => loadEmails(1), 500);
         });
 
+        // -----------------------------------------------------------------------
+        // Bulk delete
+        // -----------------------------------------------------------------------
+
+        async function deleteSelected() {
+            if (selectedIds.size === 0) return;
+            if (!confirm(\`Delete \${selectedIds.size} email\${selectedIds.size > 1 ? 's' : ''}?\`)) return;
+            try {
+                const res = await fetch('/api/emails', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify([...selectedIds]),
+                });
+                if (!res.ok) throw new Error(\`HTTP \${res.status}\`);
+                clearSelection();
+                loadEmails(currentPage);
+            } catch (err) {
+                alert(\`Failed to delete: \${err.message}\`);
+            }
+        }
+
+        // -----------------------------------------------------------------------
+        // Detail view
+        // -----------------------------------------------------------------------
+
         async function openDetail(id) {
             viewList.classList.add('hidden');
             navActions.classList.add('hidden');
+            selectToolbar.classList.add('hidden');
+            selectToolbar.classList.remove('flex');
             viewDetail.classList.remove('hidden');
-            document.getElementById('detail-subject').textContent = 'Loading...';
-            document.getElementById('detail-sender').textContent = '-';
+            document.getElementById('detail-subject').textContent   = 'Loading...';
+            document.getElementById('detail-sender').textContent    = '-';
             document.getElementById('detail-recipient').textContent = '-';
-            document.getElementById('detail-date').textContent = '-';
-            document.getElementById('detail-frame').srcdoc = '';
+            document.getElementById('detail-date').textContent      = '-';
+            document.getElementById('detail-frame').srcdoc          = '';
 
             try {
                 const res = await fetch(\`/api/emails/\${id}\`);
                 if (!res.ok) throw new Error(\`HTTP \${res.status}\`);
                 const email = await res.json();
-                document.getElementById('detail-subject').textContent = email.subject || '(No Subject)';
-                document.getElementById('detail-sender').textContent = email.sender || '-';
+                document.getElementById('detail-subject').textContent   = email.subject || '(No Subject)';
+                document.getElementById('detail-sender').textContent    = email.sender || '-';
                 document.getElementById('detail-recipient').textContent = email.recipient || '-';
-                document.getElementById('detail-date').textContent = new Date(email.received_at).toLocaleString('en-US');
-                document.getElementById('btn-delete-detail').onclick = () => deleteEmail(id, true);
-                document.getElementById('detail-frame').srcdoc = email.body_html
+                document.getElementById('detail-date').textContent      = new Date(email.received_at).toLocaleString('en-US');
+                document.getElementById('btn-delete-detail').onclick    = () => deleteOne(id, true);
+                document.getElementById('detail-frame').srcdoc          = email.body_html
                     || \`<pre style="padding:20px;white-space:pre-wrap">\${escapeHtml(email.body_text)}</pre>\`;
             } catch (err) {
                 document.getElementById('detail-subject').textContent = 'Failed to load email.';
@@ -174,15 +271,22 @@ export const getDashboardHtml = () => `<!DOCTYPE html>
         function closeDetail() {
             viewDetail.classList.add('hidden');
             viewList.classList.remove('hidden');
-            navActions.classList.remove('hidden');
             document.getElementById('detail-frame').srcdoc = '';
+            // Restore correct nav bar
+            if (selectedIds.size > 0) {
+                selectToolbar.classList.remove('hidden');
+                selectToolbar.classList.add('flex');
+            } else {
+                navActions.classList.remove('hidden');
+            }
         }
 
-        async function deleteEmail(id, closeView = false) {
+        async function deleteOne(id, closeView = false) {
             if (!confirm('Delete this email?')) return;
             try {
                 const res = await fetch(\`/api/emails/\${id}\`, { method: 'DELETE' });
                 if (!res.ok) throw new Error(\`HTTP \${res.status}\`);
+                selectedIds.delete(id);
                 if (closeView) closeDetail();
                 loadEmails(currentPage);
             } catch (err) {
@@ -190,8 +294,12 @@ export const getDashboardHtml = () => `<!DOCTYPE html>
             }
         }
 
+        // -----------------------------------------------------------------------
+        // Boot
+        // -----------------------------------------------------------------------
+
         async function init() {
-            const params = new URLSearchParams(window.location.search);
+            const params  = new URLSearchParams(window.location.search);
             const emailId = params.get('id');
             await loadEmails(1);
             if (emailId) {
