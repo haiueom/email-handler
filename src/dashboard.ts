@@ -4,10 +4,13 @@ export const getDashboardHtml = () => `<!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Email Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>tailwind.config = { darkMode: 'class' };</script>
     <script>
-        // Apply dark mode before first paint to avoid flash
+        // Must be set BEFORE the Tailwind CDN script loads so dark: variants are generated
+        window.tailwind = { config: { darkMode: 'class' } };
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Apply saved/system dark preference before first paint to prevent flash
         (function () {
             const saved = localStorage.getItem('theme');
             const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -32,9 +35,9 @@ export const getDashboardHtml = () => `<!DOCTYPE html>
                     class="bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 px-4 py-2 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/60 text-sm font-medium transition">
                     Refresh
                 </button>
-                <button id="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode"
+                <button onclick="toggleTheme()" title="Toggle dark mode"
                     class="w-9 h-9 flex items-center justify-center rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition text-lg">
-                    <span id="theme-icon">🌙</span>
+                    <span id="theme-icon"></span>
                 </button>
             </div>
 
@@ -47,9 +50,9 @@ export const getDashboardHtml = () => `<!DOCTYPE html>
                     class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium transition">
                     🗑 Delete selected
                 </button>
-                <button id="theme-toggle-sel" onclick="toggleTheme()" title="Toggle dark mode"
+                <button onclick="toggleTheme()" title="Toggle dark mode"
                     class="w-9 h-9 flex items-center justify-center rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition text-lg">
-                    <span class="theme-icon-sel">🌙</span>
+                    <span class="theme-icon-mirror"></span>
                 </button>
             </div>
         </div>
@@ -121,21 +124,56 @@ export const getDashboardHtml = () => `<!DOCTYPE html>
         // Dark mode
         // -----------------------------------------------------------------------
 
-        function updateThemeIcon() {
-            const isDark = document.documentElement.classList.contains('dark');
-            document.getElementById('theme-icon').textContent = isDark ? '☀️' : '🌙';
-            document.querySelectorAll('.theme-icon-sel').forEach((el) => {
-                el.textContent = isDark ? '☀️' : '🌙';
-            });
+        function isDark() {
+            return document.documentElement.classList.contains('dark');
+        }
+
+        function syncThemeIcons() {
+            const icon = isDark() ? '☀️' : '🌙';
+            document.getElementById('theme-icon').textContent = icon;
+            document.querySelectorAll('.theme-icon-mirror').forEach((el) => el.textContent = icon);
         }
 
         function toggleTheme() {
-            const isDark = document.documentElement.classList.toggle('dark');
-            localStorage.setItem('theme', isDark ? 'dark' : 'light');
-            updateThemeIcon();
+            document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', isDark() ? 'dark' : 'light');
+            syncThemeIcons();
+            syncIframeDarkMode();
         }
 
-        updateThemeIcon();
+        // Inject/remove a minimal dark stylesheet inside the email iframe so the
+        // email body is readable regardless of the email's own colors.
+        function syncIframeDarkMode() {
+            const frame = document.getElementById('detail-frame');
+            try {
+                const doc = frame.contentDocument;
+                if (!doc) return;
+                let style = doc.getElementById('__dark_override');
+                if (isDark()) {
+                    if (!style) {
+                        style = doc.createElement('style');
+                        style.id = '__dark_override';
+                        doc.head.appendChild(style);
+                    }
+                    style.textContent = \`
+                        html, body {
+                            background-color: #1f2937 !important;
+                            color: #f3f4f6 !important;
+                        }
+                        a { color: #93c5fd !important; }
+                    \`;
+                } else if (style) {
+                    style.remove();
+                }
+            } catch {
+                // Cross-origin iframe — nothing we can do
+            }
+        }
+
+        syncThemeIcons();
+
+        // Re-apply dark mode to iframe whenever it (re)loads
+        document.getElementById('detail-frame').addEventListener('load', syncIframeDarkMode);
 
         // -----------------------------------------------------------------------
         // Selection helpers
@@ -305,7 +343,8 @@ export const getDashboardHtml = () => `<!DOCTYPE html>
                 document.getElementById('detail-date').textContent      = new Date(email.received_at).toLocaleString('en-US');
                 document.getElementById('btn-delete-detail').onclick    = () => deleteOne(id, true);
                 document.getElementById('detail-frame').srcdoc          = email.body_html
-                    || \`<pre style="padding:20px;white-space:pre-wrap">\${escapeHtml(email.body_text)}</pre>\`;
+                    || \`<pre style="padding:20px;white-space:pre-wrap;font-family:monospace">\${escapeHtml(email.body_text)}</pre>\`;
+                // syncIframeDarkMode is called automatically via the 'load' event listener
             } catch (err) {
                 document.getElementById('detail-subject').textContent = 'Failed to load email.';
                 document.getElementById('detail-frame').srcdoc = \`<p style="padding:20px;color:red">\${escapeHtml(err.message)}</p>\`;
