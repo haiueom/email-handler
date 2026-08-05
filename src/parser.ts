@@ -1,25 +1,48 @@
-import * as cheerio from 'cheerio';
 import type { Address } from 'postal-mime';
-import type { EmailRecord, ExtractedContent, ParsedLink } from './types';
+import type { EmailRecord } from './types';
 
 /**
- * Strips noise from an HTML email body, returns plain text and HTTP links.
+ * Strips HTML tags and returns plain text.
  */
-export function extractFromHtml(html: string): ExtractedContent {
-	const $ = cheerio.load(html);
-	$('style, script, head, title, meta, link, img, footer').remove();
+export function extractTextFromHtml(html: string): string {
+	return html.replace(/<[^>]+>/g, ' ').replace(/\s\s+/g, ' ').trim();
+}
 
-	const text = $('body').text().replace(/\s\s+/g, ' ').trim();
-	const links = $('a')
-		.map((_, el): ParsedLink | null => {
-			const href = $(el).attr('href');
-			if (!href?.startsWith('http')) return null;
-			return { href, text: ($(el).text().trim() || 'Link').substring(0, 50) };
-		})
-		.get()
-		.filter((l): l is ParsedLink => l !== null);
+/**
+ * Extracts OTP codes from email text.
+ * Matches 4-8 digit codes with OTP context keywords, avoiding phone numbers and addresses.
+ */
+export function extractOtpCodes(text: string): string[] {
+	if (!text) return [];
 
-	return { text, links };
+	// OTP context keywords that should appear near the code
+	const otpPatterns = [
+		/(?:verification|verify|confirm|one[- ]?time|otp|code|pin|passcode|security code|access code)[\s:\-]*\b(\d{4,8})\b/gi,
+		/\b(\d{4,8})\b[\s:\-]*(?:is your|is the|verification|verify|confirm|otp|code|pin)/gi,
+		/(?:enter|use|input|type)[\s]+(?:code|pin|otp)[\s:]*\b(\d{4,8})\b/gi,
+	];
+
+	const codes = new Set<string>();
+
+	for (const pattern of otpPatterns) {
+		let match: RegExpExecArray | null;
+		while ((match = pattern.exec(text)) !== null) {
+			const code = match[1];
+			// Exclude patterns that look like phone numbers (with country code prefix)
+			const beforeIndex = Math.max(0, match.index - 10);
+			const before = text.slice(beforeIndex, match.index);
+			// Skip if preceded by + (country code) or looks like phone context
+			if (/\+\d{1,3}[\s-]*$/.test(before)) continue;
+			if (/phone|mobile|cell|call|fax/i.test(before)) continue;
+			// Skip if code is surrounded by other digits (part of larger number)
+			const afterIndex = match.index + match[0].length;
+			const after = text.slice(afterIndex, afterIndex + 5);
+			if (/^\d/.test(after) && !/^\d{1,2}\s/.test(after)) continue;
+			codes.add(code);
+		}
+	}
+
+	return [...codes];
 }
 
 export function formatAddress(address?: Address): string {
@@ -38,13 +61,8 @@ export function formatAddressList(addresses?: Address[]): string {
 /**
  * Builds the plain-text summary file attached to the Discord message.
  */
-export function buildEmailSummary(email: Omit<EmailRecord, 'id'>, extracted: ExtractedContent, storedId: number): string {
-	const body = email.text || extracted.text || '(No body text)';
-
-	const links =
-		extracted.links.length > 0
-			? extracted.links.map((l, i) => `${i + 1}. ${l.text}: ${l.href}`).join('\n')
-			: '-';
+export function buildEmailSummary(email: Omit<EmailRecord, 'id'>, extractedText: string, storedId: number): string {
+	const body = email.text || extractedText || '(No body text)';
 
 	const attachments =
 		email.attachments.length > 0
@@ -58,16 +76,9 @@ export function buildEmailSummary(email: Omit<EmailRecord, 'id'>, extracted: Ext
 			`Stored ID: ${storedId}`,
 			`Subject:   ${email.subject || '(No Subject)'}`,
 			`From:      ${formatAddress(email.from)}`,
-			`Sender:    ${formatAddress(email.sender)}`,
-			`Reply-To:  ${formatAddressList(email.replyTo)}`,
 			`To:        ${formatAddressList(email.to)}`,
-			`Cc:        ${formatAddressList(email.cc)}`,
 			`Date:      ${email.date ?? '-'}`,
-			`Message-ID:  ${email.messageId ?? '-'}`,
-			`In-Reply-To: ${email.inReplyTo ?? '-'}`,
-			`References:  ${email.references ?? '-'}`,
 		].join('\n')),
-		section('LINKS', '=====', links),
 		section('ATTACHMENTS', '===========', attachments),
 		section('BODY', '====', body),
 	].join('\n\n');

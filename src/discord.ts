@@ -1,6 +1,3 @@
-import type { Email } from 'postal-mime';
-import type { ExtractedContent } from './types';
-
 type ParsedEmail = Awaited<ReturnType<import('postal-mime').default['parse']>>;
 
 /**
@@ -8,9 +5,7 @@ type ParsedEmail = Awaited<ReturnType<import('postal-mime').default['parse']>>;
  */
 export async function sendDiscordNotification(
 	webhookUrl: string,
-	dashboardUrl: string | undefined,
 	parsedEmail: ParsedEmail,
-	extracted: ExtractedContent,
 	summaryText: string,
 	storedId: number,
 ): Promise<void> {
@@ -24,11 +19,12 @@ export async function sendDiscordNotification(
 		{ name: `📥 To: ${toName}`, value: `\`\`\`${toAddress}\`\`\``, inline: false },
 	];
 
-	if (extracted.links.length > 0) {
-		const top = extracted.links.slice(0, 5);
-		let linksText = top.map((l) => `- [${l.text}](${l.href})`).join('\n');
-		if (extracted.links.length > 5) linksText += `\n*...and ${extracted.links.length - 5} more*`;
-		fields.push({ name: '🔗 Links', value: linksText.substring(0, 1024), inline: false });
+	// Extract OTP codes from email text
+	const textContent = parsedEmail.text || '';
+	const otpCodes = extractOtpCodes(textContent);
+	if (otpCodes.length > 0) {
+		const otpValue = otpCodes.map((code) => `\`${code}\``).join('  ');
+		fields.push({ name: '🔐 OTP Code', value: otpValue, inline: false });
 	}
 
 	const embed: Record<string, unknown> = {
@@ -38,12 +34,46 @@ export async function sendDiscordNotification(
 		footer: { text: `ID: #${storedId} • ${new Date().toUTCString()}` },
 	};
 
-	if (dashboardUrl) embed.url = `${dashboardUrl}?id=${storedId}`;
-
 	const form = new FormData();
 	form.append('payload_json', JSON.stringify({ embeds: [embed] }));
 	form.append('files[0]', new Blob([summaryText], { type: 'text/plain; charset=utf-8' }), 'email.txt');
 
 	const res = await fetch(webhookUrl, { method: 'POST', body: form });
 	if (!res.ok) throw new Error(`Discord webhook failed: ${res.status} ${res.statusText}`);
+}
+
+/**
+ * Extracts OTP codes from email text.
+ * Matches 4-8 digit codes with OTP context keywords, avoiding phone numbers and addresses.
+ */
+function extractOtpCodes(text: string): string[] {
+	if (!text) return [];
+
+	// OTP context patterns
+	const patterns = [
+		/(?:verification|verify|confirm|one[- ]?time|otp|code|pin|passcode|security code|access code)[\s:\-]*\b(\d{4,8})\b/gi,
+		/\b(\d{4,8})\b[\s:\-]*(?:is your|is the|verification|verify|confirm|otp|code|pin)/gi,
+		/(?:enter|use|input|type)[\s]+(?:code|pin|otp)[\s:]*\b(\d{4,8})\b/gi,
+	];
+
+	const codes = new Set<string>();
+
+	for (const pattern of patterns) {
+		let match: RegExpExecArray | null;
+		while ((match = pattern.exec(text)) !== null) {
+			const code = match[1];
+			// Check context before to avoid phone numbers
+			const beforeIndex = Math.max(0, match.index - 10);
+			const before = text.slice(beforeIndex, match.index);
+			if (/\+\d{1,3}[\s-]*$/.test(before)) continue;
+			if (/phone|mobile|cell|call|fax/i.test(before)) continue;
+			// Check after to avoid being part of larger number
+			const afterIndex = match.index + match[0].length;
+			const after = text.slice(afterIndex, afterIndex + 5);
+			if (/^\d/.test(after) && !/^\d{1,2}\s/.test(after)) continue;
+			codes.add(code);
+		}
+	}
+
+	return [...codes];
 }
