@@ -8,7 +8,10 @@
 		"cf-typegen": "wrangler types"
 	},
 	"dependencies": {
-		"postal-mime": "^2.7.5"
+		"@hono/zod-validator": "^0.9.0",
+		"hono": "^4.13.0",
+		"postal-mime": "^2.7.5",
+		"zod": "^4.4.3"
 	},
 	"devDependencies": {
 		"typescript": "^7.0.2",
