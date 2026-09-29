@@ -20,7 +20,8 @@ export async function sendDiscordNotification(
 		{ name: `📥 To: ${toName}`, value: `\`\`\`${toAddress}\`\`\``, inline: false },
 	];
 
-	const otpCodes = extractOtpCodes(parsedEmail.text || '');
+	const bodyText = parsedEmail.text || (parsedEmail.html ? summaryText.match(/BODY\n====\n([\s\S]*)/)?.[1] || '' : '');
+	const otpCodes = extractOtpCodes(bodyText);
 	if (otpCodes.length > 0) {
 		const otpValue = otpCodes.map((code) => `\`${code}\``).join('  ');
 		fields.push({ name: '🔐 OTP Code', value: otpValue, inline: false });
@@ -38,5 +39,8 @@ export async function sendDiscordNotification(
 	form.append('files[0]', new Blob([summaryText], { type: 'text/plain; charset=utf-8' }), 'email.txt');
 
 	const res = await fetch(webhookUrl, { method: 'POST', body: form });
-	if (!res.ok) throw new Error(`Discord webhook failed: ${res.status} ${res.statusText}`);
+	if (!res.ok) {
+		const body = await res.text().catch(() => '(no body)');
+		throw new Error(`Discord webhook failed: ${res.status} ${res.statusText} — ${body}`);
+	}
 }

@@ -1,8 +1,7 @@
 import type { Email } from 'postal-mime';
 
-export interface EmailRecord extends Omit<Email, 'html'> {
+export interface EmailRecord extends Email {
 	id?: number;
-	html?: string;
 	raw: string;
 }
 

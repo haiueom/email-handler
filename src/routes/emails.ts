@@ -5,6 +5,11 @@ import type { EmailRow } from '../types'
 
 const app = new Hono<{ Bindings: Env }>()
 
+function parseEmailId(id: string): number | null {
+	const parsed = Number(id);
+	return Number.isSafeInteger(parsed) && parsed >= 1 ? parsed : null;
+}
+
 const listQuerySchema = z.object({
 	page: z.coerce.number().int().min(1).default(1),
 	limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -27,19 +32,19 @@ app.get('/', zValidator('query', listQuerySchema), async (c) => {
 })
 
 app.get('/:id', async (c) => {
-	const id = Number(c.req.param('id'))
-	if (!Number.isSafeInteger(id) || id < 1) return c.json({ error: 'Invalid id' }, 400)
-	const email = await c.env.DB.prepare('SELECT id, recipient, sender, subject, body_text, body_html, received_at FROM emails WHERE id = ?').bind(id).first<EmailRow>()
-	if (!email) return c.json({ error: 'Not found' }, 404)
-	return c.json({ data: email })
+	const id = parseEmailId(c.req.param('id'));
+	if (!id) return c.json({ error: 'Invalid id' }, 400);
+	const email = await c.env.DB.prepare('SELECT id, recipient, sender, subject, body_text, body_html, received_at FROM emails WHERE id = ?').bind(id).first<EmailRow>();
+	if (!email) return c.json({ error: 'Not found' }, 404);
+	return c.json({ data: email });
 })
 
 app.delete('/:id', async (c) => {
-	const id = Number(c.req.param('id'))
-	if (!Number.isSafeInteger(id) || id < 1) return c.json({ error: 'Invalid id' }, 400)
-	const result = await c.env.DB.prepare('DELETE FROM emails WHERE id = ?').bind(id).run()
-	if (result.meta.changes === 0) return c.json({ error: 'Not found' }, 404)
-	return c.json({ success: true })
+	const id = parseEmailId(c.req.param('id'));
+	if (!id) return c.json({ error: 'Invalid id' }, 400);
+	const result = await c.env.DB.prepare('DELETE FROM emails WHERE id = ?').bind(id).run();
+	if (result.meta.changes === 0) return c.json({ error: 'Not found' }, 404);
+	return c.json({ success: true });
 })
 
 const bulkDeleteSchema = z.array(z.number().int().positive()).min(1).max(100)

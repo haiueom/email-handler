@@ -1,33 +1,40 @@
 /**
  * Exact sender addresses to block (lowercase).
+ * Configure via BLOCKED_EMAILS env var (comma-separated).
  */
-export const BLOCKED_EMAILS: string[] = ['specific-spammer@gmail.com', 'another-spammer@yahoo.com'];
+export function getBlockedEmails(env?: Env): string[] {
+	if (!env?.BLOCKED_EMAILS) return [];
+	return env.BLOCKED_EMAILS.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+}
 
 /**
  * Domain glob patterns to block. '*' matches any characters.
+ * Configure via BLOCK_PATTERNS env var (comma-separated).
  *
  * Examples:
  *   'spam.com'   — blocks spam.com exactly
  *   '*.spam.com' — blocks all subdomains of spam.com
  */
-export const BLOCK_PATTERNS: string[] = ['za.com', '*.za.com', 'sa.com', '*.sa.com'];
-
-// --- compiled at module load, paid once per worker instance ---
-
-const BLOCKED_SET = new Set(BLOCKED_EMAILS.map((e) => e.toLowerCase()));
-
-const COMPILED_PATTERNS = BLOCK_PATTERNS.map((pattern) => {
-	const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
-	return new RegExp(`^${escaped.replace(/\*/g, '.*')}$`, 'i');
-});
+export function getBlockPatterns(env?: Env): string[] {
+	if (!env?.BLOCK_PATTERNS) return [];
+	return env.BLOCK_PATTERNS.split(',').map((p) => p.trim()).filter(Boolean);
+}
 
 /**
  * Returns true if the lowercase sender address or its domain is blocked.
  */
-export function isSenderBlocked(sender: string): boolean {
-	if (BLOCKED_SET.has(sender)) return true;
+export function isSenderBlocked(sender: string, env?: Env): boolean {
+	const blockedSet = new Set(getBlockedEmails(env));
+	if (blockedSet.has(sender)) return true;
+
 	const at = sender.lastIndexOf('@');
 	if (at <= 0 || at === sender.length - 1) return false;
+
 	const domain = sender.slice(at + 1);
-	return COMPILED_PATTERNS.some((re) => re.test(domain));
+	const patterns = getBlockPatterns(env).map((pattern) => {
+		const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+		return new RegExp(`^${escaped.replace(/\*/g, '.*')}$`, 'i');
+	});
+
+	return patterns.some((re) => re.test(domain));
 }

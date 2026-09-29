@@ -11,20 +11,20 @@ export async function handleEmail(message: ForwardableEmailMessage, env: Env, ct
 		const parsedEmail = await new PostalMime().parse(rawBuffer);
 
 		const sender = parsedEmail.from?.address?.toLowerCase();
-		if (sender && isSenderBlocked(sender)) {
+		if (sender && isSenderBlocked(sender, env)) {
 			console.warn(`Blocked sender: ${sender}`);
 			message.setReject('Policy: Sender blocked by user policy.');
 			return;
 		}
 
-		const extractedText = extractTextFromHtml(parsedEmail.html ?? '');
+		const bodyText = parsedEmail.text || extractTextFromHtml(parsedEmail.html ?? '');
 		const emailData: Omit<EmailRecord, 'id'> = {
 			...parsedEmail,
 			raw: new TextDecoder().decode(rawBuffer),
 		};
 
-		const storedId = await saveEmail(env.DB, emailData, extractedText);
-		const summary = buildEmailSummary(emailData, extractedText, storedId);
+		const storedId = await saveEmail(env.DB, emailData, bodyText);
+		const summary = buildEmailSummary(emailData, bodyText, storedId);
 
 		if (env.DISCORD_WEBHOOK_URL) {
 			ctx.waitUntil(sendDiscordNotification(env.DISCORD_WEBHOOK_URL, parsedEmail, summary, storedId));
