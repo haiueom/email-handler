@@ -1,5 +1,4 @@
-import { createRoute, OpenAPIHono } from '@hono/zod-openapi'
-import { z } from 'zod'
+import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import {
 	bulkDeleteSchema,
 	bulkDeleteResponseSchema,
@@ -14,6 +13,13 @@ import {
 
 const app = new OpenAPIHono<{ Bindings: Env }>()
 
+// Register bearer auth scheme so it shows in /docs and /openapi.json
+app.openAPIRegistry.registerComponent('securitySchemes', 'bearerAuth', {
+	type: 'http',
+	scheme: 'bearer',
+	description: 'Use the API_TOKEN env var as the bearer token.',
+})
+
 function parseEmailId(id: string): number | null {
 	const parsed = Number(id)
 	return Number.isSafeInteger(parsed) && parsed >= 1 ? parsed : null
@@ -26,6 +32,7 @@ const listRoute = createRoute({
 	summary: 'List emails',
 	description: 'Returns a paginated list of stored emails, newest first. Search matches subject or sender.',
 	tags: ['Emails'],
+	security: [{ bearerAuth: [] }],
 	request: { query: listEmailsQuerySchema },
 	responses: {
 		200: {
@@ -60,6 +67,7 @@ const getByIdRoute = createRoute({
 	summary: 'Get email by ID',
 	description: 'Returns the full email record including body text, HTML, and metadata.',
 	tags: ['Emails'],
+	security: [{ bearerAuth: [] }],
 	request: {
 		params: z.object({
 			id: z.string().openapi({ example: '1' }),
@@ -93,6 +101,7 @@ const deleteByIdRoute = createRoute({
 	summary: 'Delete email by ID',
 	description: 'Permanently deletes a single email from D1 storage.',
 	tags: ['Emails'],
+	security: [{ bearerAuth: [] }],
 	request: {
 		params: z.object({
 			id: z.string().openapi({ example: '1' }),
@@ -126,6 +135,7 @@ const bulkDeleteRoute = createRoute({
 	summary: 'Bulk delete emails',
 	description: 'Deletes up to 100 emails in a single request.',
 	tags: ['Emails'],
+	security: [{ bearerAuth: [] }],
 	request: {
 		body: {
 			content: { 'application/json': { schema: bulkDeleteSchema } },
