@@ -57,6 +57,11 @@ BLOCK_PATTERNS=spam.com,*.spam.com
 ]
 ```
 
+## API Documentation
+
+Interactive docs: `GET /docs` (Scalar UI)
+OpenAPI spec: `GET /openapi.json`
+
 ## REST API
 
 All endpoints require `Authorization: Bearer <API_TOKEN>` header.

@@ -1,22 +1,41 @@
-import { Hono } from 'hono'
-import { zValidator } from '@hono/zod-validator'
+import { createRoute, OpenAPIHono } from '@hono/zod-openapi'
 import { z } from 'zod'
-import type { EmailRow } from '../types'
+import {
+	bulkDeleteSchema,
+	bulkDeleteResponseSchema,
+	deleteResponseSchema,
+	emailDetailSchema,
+	emailDetailResponseSchema,
+	emailListResponseSchema,
+	emailSummarySchema,
+	errorSchema,
+	listEmailsQuerySchema,
+} from '../schemas'
 
-const app = new Hono<{ Bindings: Env }>()
+const app = new OpenAPIHono<{ Bindings: Env }>()
 
 function parseEmailId(id: string): number | null {
-	const parsed = Number(id);
-	return Number.isSafeInteger(parsed) && parsed >= 1 ? parsed : null;
+	const parsed = Number(id)
+	return Number.isSafeInteger(parsed) && parsed >= 1 ? parsed : null
 }
 
-const listQuerySchema = z.object({
-	page: z.coerce.number().int().min(1).default(1),
-	limit: z.coerce.number().int().min(1).max(100).default(20),
-	search: z.string().optional(),
+// GET /api/email
+const listRoute = createRoute({
+	method: 'get',
+	path: '/',
+	summary: 'List emails',
+	description: 'Returns a paginated list of stored emails, newest first. Search matches subject or sender.',
+	tags: ['Emails'],
+	request: { query: listEmailsQuerySchema },
+	responses: {
+		200: {
+			content: { 'application/json': { schema: emailListResponseSchema } },
+			description: 'Email list with pagination metadata',
+		},
+	},
 })
 
-app.get('/', zValidator('query', listQuerySchema), async (c) => {
+app.openapi(listRoute, async (c) => {
 	const { page, limit, search } = c.req.valid('query')
 	const offset = (page - 1) * limit
 	const escapeChar = '\\'
@@ -30,31 +49,101 @@ app.get('/', zValidator('query', listQuerySchema), async (c) => {
 	])
 
 	const total = (countResult.results[0] as { total: number } | undefined)?.total ?? 0
-	return c.json({ data: listResult.results as EmailRow[], meta: { total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)) } })
+	const data = listResult.results as unknown as z.infer<typeof emailSummarySchema>[]
+	return c.json({ data, meta: { total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)) } }, 200)
 })
 
-app.get('/:id', async (c) => {
-	const id = parseEmailId(c.req.param('id'));
-	if (!id) return c.json({ error: 'Invalid id' }, 400);
-	const email = await c.env.DB.prepare('SELECT id, recipient, sender, subject, body_text, body_html, received_at FROM emails WHERE id = ?').bind(id).first<EmailRow>();
-	if (!email) return c.json({ error: 'Not found' }, 404);
-	return c.json({ data: email });
+// GET /api/email/:id
+const getByIdRoute = createRoute({
+	method: 'get',
+	path: '/{id}',
+	summary: 'Get email by ID',
+	description: 'Returns the full email record including body text, HTML, and metadata.',
+	tags: ['Emails'],
+	request: {
+		params: z.object({
+			id: z.string().openapi({ example: '1' }),
+		}),
+	},
+	responses: {
+		200: {
+			content: { 'application/json': { schema: emailDetailResponseSchema } },
+			description: 'Email detail',
+		},
+		400: { content: { 'application/json': { schema: errorSchema } }, description: 'Invalid ID format' },
+		404: { content: { 'application/json': { schema: errorSchema } }, description: 'Email not found' },
+	},
 })
 
-app.delete('/:id', async (c) => {
-	const id = parseEmailId(c.req.param('id'));
-	if (!id) return c.json({ error: 'Invalid id' }, 400);
-	const result = await c.env.DB.prepare('DELETE FROM emails WHERE id = ?').bind(id).run();
-	if (result.meta.changes === 0) return c.json({ error: 'Not found' }, 404);
-	return c.json({ success: true });
+app.openapi(getByIdRoute, async (c) => {
+	const { id } = c.req.valid('param')
+	const parsedId = parseEmailId(id)
+	if (!parsedId) return c.json({ error: 'Invalid id' }, 400)
+
+	const email = await c.env.DB.prepare('SELECT id, recipient, sender, subject, body_text, body_html, received_at FROM emails WHERE id = ?').bind(parsedId).first()
+	if (!email) return c.json({ error: 'Not found' }, 404)
+
+	return c.json({ data: email as unknown as z.infer<typeof emailDetailSchema> }, 200)
 })
 
-const bulkDeleteSchema = z.array(z.number().int().positive()).min(1).max(100)
-app.delete('/', zValidator('json', bulkDeleteSchema), async (c) => {
+// DELETE /api/email/:id
+const deleteByIdRoute = createRoute({
+	method: 'delete',
+	path: '/{id}',
+	summary: 'Delete email by ID',
+	description: 'Permanently deletes a single email from D1 storage.',
+	tags: ['Emails'],
+	request: {
+		params: z.object({
+			id: z.string().openapi({ example: '1' }),
+		}),
+	},
+	responses: {
+		200: {
+			content: { 'application/json': { schema: deleteResponseSchema } },
+			description: 'Email deleted',
+		},
+		400: { content: { 'application/json': { schema: errorSchema } }, description: 'Invalid ID format' },
+		404: { content: { 'application/json': { schema: errorSchema } }, description: 'Email not found' },
+	},
+})
+
+app.openapi(deleteByIdRoute, async (c) => {
+	const { id } = c.req.valid('param')
+	const parsedId = parseEmailId(id)
+	if (!parsedId) return c.json({ error: 'Invalid id' }, 400)
+
+	const result = await c.env.DB.prepare('DELETE FROM emails WHERE id = ?').bind(parsedId).run()
+	if (result.meta.changes === 0) return c.json({ error: 'Not found' }, 404)
+
+	return c.json({ success: true }, 200)
+})
+
+// DELETE /api/email
+const bulkDeleteRoute = createRoute({
+	method: 'delete',
+	path: '/',
+	summary: 'Bulk delete emails',
+	description: 'Deletes up to 100 emails in a single request.',
+	tags: ['Emails'],
+	request: {
+		body: {
+			content: { 'application/json': { schema: bulkDeleteSchema } },
+		},
+	},
+	responses: {
+		200: {
+			content: { 'application/json': { schema: bulkDeleteResponseSchema } },
+			description: 'Emails deleted',
+		},
+	},
+})
+
+app.openapi(bulkDeleteRoute, async (c) => {
 	const ids = c.req.valid('json')
 	const placeholders = ids.map(() => '?').join(', ')
 	const result = await c.env.DB.prepare(`DELETE FROM emails WHERE id IN (${placeholders})`).bind(...ids).run()
-	return c.json({ success: true, deleted: result.meta.changes })
+	return c.json({ success: true, deleted: result.meta.changes }, 200)
 })
 
 export default app

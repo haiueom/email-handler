@@ -6,6 +6,7 @@
 - **Database**: Cloudflare D1 (SQLite)
 - **Email parsing**: `postal-mime` v3
 - **Validation**: `@hono/zod-validator` + `zod` v4
+- **API docs**: `@hono/zod-openapi` (OpenAPI 3.0 spec) + `@scalar/hono-api-reference` (interactive docs UI)
 - **TypeScript**: v7
 
 ## Project Structure
@@ -45,10 +46,12 @@ email-handler/
 
 ### REST API
 
-- **Framework**: Hono v4 with App Router pattern
+- **Framework**: Hono v4 with `OpenAPIHono` (App Router pattern)
 - **Auth**: Bearer token via `hono/bearer-auth` middleware on `/api/*`
 - **Routes**: Mounted in `src/index.ts` as `app.route('/api/email', emails)`
-- **Validation**: Zod schemas with `@hono/zod-validator`
+- **Validation**: Zod schemas with `@hono/zod-validator` → now via `createRoute` in `src/routes/emails.ts`
+- **Schemas**: All request/response Zod schemas live in `src/schemas.ts`
+- **Docs**: OpenAPI spec at `GET /openapi.json`, Scalar UI at `GET /docs` (both public)
 
 ### OTP Detection
 
