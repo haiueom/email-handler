@@ -41,7 +41,7 @@ email-handler/
 4. **Extract text**: Prefers `parsedEmail.text`, falls back to `extractTextFromHtml(html)` for HTML-only emails
 5. **Save to D1** via `saveEmail()` — returns row ID
 6. **Build summary** with `buildEmailSummary()` — formats as plain text
-7. **Send to Discord** via `ctx.waitUntil()` — embeds OTP codes if detected
+7. **Send notifications** via `ctx.waitUntil()` — Discord (embed + OTP), Telegram (HTML message + OTP)
 8. **Fallback**: On error, forwards raw email to `FALLBACK_EMAIL` if configured
 
 ### REST API
@@ -91,7 +91,9 @@ All configured in Wrangler secrets or `.dev.vars`:
 | Variable              | Type     | Usage                                  |
 | --------------------- | -------- | -------------------------------------- |
 | `DB`                  | Binding  | D1 database (configured in wrangler)   |
-| `DISCORD_WEBHOOK_URL` | Secret   | Discord webhook for notifications      |
+| `DISCORD_WEBHOOK_URL` | Optional | Discord webhook for notifications      |
+| `TELEGRAM_BOT_TOKEN`  | Optional | Telegram bot token from @BotFather     |
+| `TELEGRAM_CHAT_ID`    | Optional | Telegram chat ID for notifications     |
 | `FALLBACK_EMAIL`      | Secret   | Fallback recipient on processing error |
 | `API_TOKEN`           | Secret   | Bearer token for REST API auth         |
 | `BLOCKED_EMAILS`      | Optional | Comma-separated sender addresses       |

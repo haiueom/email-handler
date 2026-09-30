@@ -12,6 +12,7 @@ A serverless Cloudflare Email Worker that parses incoming emails, stores them in
 - **Sender blocklist**: Rejects emails from specific addresses or domain patterns (supports `*` wildcard, configured via env vars).
 - **D1 storage**: Stores full email data (sender, recipient, subject, body text, body HTML, raw MIME) in Cloudflare D1.
 - **Discord notification**: Posts a `.txt` summary with embedded OTP codes to a Discord webhook on each received email.
+- **Telegram notification**: Posts a summary to a Telegram chat via bot API.
 - **REST API**: Hono-based JSON API with bearer token auth for listing, searching, fetching, and deleting emails.
 
 ## How It Works
@@ -29,16 +30,22 @@ On each incoming email:
 
 | Variable              | Description                                             | Required |
 | --------------------- | ------------------------------------------------------- | -------- |
-| `DISCORD_WEBHOOK_URL` | Discord webhook URL for email notifications             | Yes      |
+| `DISCORD_WEBHOOK_URL` | Discord webhook URL for email notifications             | No       |
+| `TELEGRAM_BOT_TOKEN`  | Telegram bot token from @BotFather                      | No       |
+| `TELEGRAM_CHAT_ID`    | Telegram chat ID to post notifications to               | No       |
 | `FALLBACK_EMAIL`      | Fallback recipient address if processing fails          | Yes      |
 | `API_TOKEN`           | Bearer token for REST API authentication                | Yes      |
 | `BLOCKED_EMAILS`      | Comma-separated exact sender addresses to block         | No       |
 | `BLOCK_PATTERNS`      | Comma-separated domain patterns to block (`*` wildcard) | No       |
 
+> Discord and Telegram are both optional. If neither is configured, emails are stored in D1 without a notification.
+
 Example `.env`:
 
 ```env
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/<id>/<token>
+TELEGRAM_BOT_TOKEN=123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
+TELEGRAM_CHAT_ID=123456789
 FALLBACK_EMAIL=you@example.com
 API_TOKEN=your-secret-token-here
 BLOCKED_EMAILS=spam@example.com,scam@test.com

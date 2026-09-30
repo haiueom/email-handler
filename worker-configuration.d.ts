@@ -3,11 +3,13 @@
 // Runtime types generated with workerd@1.20260908.1 2025-05-05 
 interface __BaseEnv_Env {
 	DB: D1Database;
-	DISCORD_WEBHOOK_URL: string;
+	DISCORD_WEBHOOK_URL?: string;
 	FALLBACK_EMAIL: string;
 	API_TOKEN: string;
 	BLOCKED_EMAILS?: string;
 	BLOCK_PATTERNS?: string;
+	TELEGRAM_BOT_TOKEN?: string;
+	TELEGRAM_CHAT_ID?: string;
 }
 declare namespace Cloudflare {
 	interface GlobalProps {

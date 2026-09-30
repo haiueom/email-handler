@@ -3,6 +3,7 @@ import { isSenderBlocked } from './filter';
 import { extractTextFromHtml, buildEmailSummary } from './parser';
 import { saveEmail } from './db';
 import { sendDiscordNotification } from './discord';
+import { sendTelegramNotification } from './telegram';
 import type { EmailRecord } from './types';
 
 export async function handleEmail(message: ForwardableEmailMessage, env: Env, ctx: ExecutionContext): Promise<void> {
@@ -26,8 +27,18 @@ export async function handleEmail(message: ForwardableEmailMessage, env: Env, ct
 		const storedId = await saveEmail(env.DB, emailData, bodyText);
 		const summary = buildEmailSummary(emailData, bodyText, storedId);
 
+		const notifications: Promise<void>[] = [];
+
 		if (env.DISCORD_WEBHOOK_URL) {
-			ctx.waitUntil(sendDiscordNotification(env.DISCORD_WEBHOOK_URL, parsedEmail, summary, storedId));
+			notifications.push(sendDiscordNotification(env.DISCORD_WEBHOOK_URL, parsedEmail, summary, storedId));
+		}
+
+		if (env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID) {
+			notifications.push(sendTelegramNotification(env.TELEGRAM_BOT_TOKEN, env.TELEGRAM_CHAT_ID, parsedEmail, summary, storedId));
+		}
+
+		for (const notification of notifications) {
+			ctx.waitUntil(notification.catch((error) => console.error('Notification failed:', error)));
 		}
 	} catch (error) {
 		console.error('Email handler error:', error);
