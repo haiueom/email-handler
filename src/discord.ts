@@ -36,7 +36,7 @@ export async function sendDiscordNotification(
 
 	const form = new FormData();
 	form.append('payload_json', JSON.stringify({ embeds: [embed] }));
-	form.append('files[0]', new Blob([summaryText], { type: 'text/plain; charset=utf-8' }), 'email.txt');
+	form.append('files[0]', new Blob([summaryText], { type: 'text/plain; charset=utf-8' }), `email-${storedId}.txt`);
 
 	const res = await fetch(webhookUrl, { method: 'POST', body: form });
 	if (!res.ok) {
