@@ -4,9 +4,7 @@ import emails from './routes/emails'
 import { errorHandler } from './middleware/error-handler'
 import { auth } from './middleware/auth'
 
-type Variables = { userEmail: string }
-
-const app = new Hono<{ Bindings: Env; Variables: Variables }>()
+const app = new Hono<{ Bindings: Env }>()
 app.onError(errorHandler)
 app.use('/api/*', auth)
 app.route('/api/email', emails)

@@ -32,7 +32,11 @@ export async function handleEmail(message: ForwardableEmailMessage, env: Env, ct
 	} catch (error) {
 		console.error('Email handler error:', error);
 		if (env.FALLBACK_EMAIL) {
-			await message.forward(env.FALLBACK_EMAIL);
+			try {
+				await message.forward(env.FALLBACK_EMAIL);
+			} catch (forwardError) {
+				console.error('Failed to forward to FALLBACK_EMAIL:', forwardError);
+			}
 		} else {
 			console.error('FALLBACK_EMAIL is not configured.');
 		}

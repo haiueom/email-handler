@@ -11,7 +11,7 @@ export async function saveEmail(db: D1Database, email: Omit<EmailRecord, 'id'>, 
 		)
 		.bind(
 			email.to?.[0]?.address ?? 'unknown',
-			email.from?.address ?? 'unknown',
+			email.from?.address?.toLowerCase() ?? 'unknown',
 			email.subject || '(No Subject)',
 			email.text || extractedText || '',
 			email.html || '',

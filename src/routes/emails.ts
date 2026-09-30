@@ -19,8 +19,10 @@ const listQuerySchema = z.object({
 app.get('/', zValidator('query', listQuerySchema), async (c) => {
 	const { page, limit, search } = c.req.valid('query')
 	const offset = (page - 1) * limit
-	const condition = search ? 'WHERE subject LIKE ? OR sender LIKE ?' : ''
-	const searchParams: unknown[] = search ? [`%${search}%`, `%${search}%`] : []
+	const escapeChar = '\\'
+	const condition = search ? `WHERE subject LIKE ? ESCAPE '${escapeChar}' OR sender LIKE ? ESCAPE '${escapeChar}'` : ''
+	const escapedSearch = search?.replace(/[%_\\]/g, `${escapeChar}$&`) ?? ''
+	const searchParams: unknown[] = search ? [`%${escapedSearch}%`, `%${escapedSearch}%`] : []
 
 	const [countResult, listResult] = await c.env.DB.batch([
 		c.env.DB.prepare(`SELECT COUNT(*) as total FROM emails ${condition}`).bind(...searchParams),
