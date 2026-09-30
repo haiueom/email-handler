@@ -18,7 +18,7 @@ app.doc('/openapi.json', {
 		version: '1.0.0',
 		description: 'Serverless Cloudflare Email Worker — parses incoming emails, stores in D1, posts summaries to Discord.',
 	},
-	servers: [{ url: 'https://email-handler.<your-subdomain>.workers.dev', description: 'Production' }],
+	servers: [{ url: 'https://email-handler.haiueom.workers.dev', description: 'Production' }],
 })
 
 app.get('/docs', Scalar({ url: '/openapi.json', theme: 'purple' }))
