@@ -10,16 +10,16 @@ importers:
     dependencies:
       '@hono/zod-openapi':
         specifier: ^1.6.3
-        version: 1.6.3(hono@4.13.12)(zod@4.6.5)
+        version: 1.6.3(hono@4.13.13)(zod@4.6.5)
       '@hono/zod-validator':
         specifier: ^0.9.1
-        version: 0.9.1(hono@4.13.12)(zod@4.6.5)
+        version: 0.9.1(hono@4.13.13)(zod@4.6.5)
       '@scalar/hono-api-reference':
         specifier: ^0.12.8
-        version: 0.12.8(hono@4.13.12)
+        version: 0.12.8(hono@4.13.13)
       hono:
-        specifier: ^4.13.12
-        version: 4.13.12
+        specifier: ^4.13.13
+        version: 4.13.13
       postal-mime:
         specifier: ^4.0.2
         version: 4.0.2
@@ -618,8 +618,8 @@ packages:
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
 
-  hono@4.13.12:
-    resolution: {integrity: sha512-6E2QDAc9Ick9Sq77ZrGS/dk2WUYni91aufTw6LJKpV7w8kW5/GxVUc650FOADOmlwg3K+f7Pun6XlV+pYmW6gw==}
+  hono@4.13.13:
+    resolution: {integrity: sha512-CQ46U0ZkAGmbT/4UxdzzGJpacP2IeKgY4a5/tOI9AABbpOMfK739wfDXmv1usCk+3RkKj1hQy4/fjhiwa2xlrA==}
     engines: {node: '>=16.9.0'}
 
   kleur@4.1.5:
@@ -847,17 +847,17 @@ snapshots:
   '@esbuild/win32-x64@0.28.1':
     optional: true
 
-  '@hono/zod-openapi@1.6.3(hono@4.13.12)(zod@4.6.5)':
+  '@hono/zod-openapi@1.6.3(hono@4.13.13)(zod@4.6.5)':
     dependencies:
       '@asteasolutions/zod-to-openapi': 9.1.0(zod@4.6.5)
-      '@hono/zod-validator': 0.9.1(hono@4.13.12)(zod@4.6.5)
-      hono: 4.13.12
+      '@hono/zod-validator': 0.9.1(hono@4.13.13)(zod@4.6.5)
+      hono: 4.13.13
       openapi3-ts: 4.6.1
       zod: 4.6.5
 
-  '@hono/zod-validator@0.9.1(hono@4.13.12)(zod@4.6.5)':
+  '@hono/zod-validator@0.9.1(hono@4.13.13)(zod@4.6.5)':
     dependencies:
-      hono: 4.13.12
+      hono: 4.13.13
       zod: 4.6.5
 
   '@img/colour@1.1.0': {}
@@ -996,10 +996,10 @@ snapshots:
 
   '@scalar/helpers@0.16.0': {}
 
-  '@scalar/hono-api-reference@0.12.8(hono@4.13.12)':
+  '@scalar/hono-api-reference@0.12.8(hono@4.13.13)':
     dependencies:
       '@scalar/client-side-rendering': 0.4.7
-      hono: 4.13.12
+      hono: 4.13.13
 
   '@scalar/schemas@0.12.2':
     dependencies:
@@ -1119,7 +1119,7 @@ snapshots:
   fsevents@2.3.3:
     optional: true
 
-  hono@4.13.12: {}
+  hono@4.13.13: {}
 
   kleur@4.1.5: {}
 
