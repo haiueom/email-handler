@@ -5,7 +5,6 @@ interface __BaseEnv_Env {
 	DB: D1Database;
 	DISCORD_WEBHOOK_URL?: string;
 	FALLBACK_EMAIL: string;
-	API_TOKEN: string;
 	BLOCKED_EMAILS?: string;
 	BLOCK_PATTERNS?: string;
 	TELEGRAM_BOT_TOKEN?: string;

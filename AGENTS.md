@@ -2,11 +2,9 @@
 
 ## Stack
 
-- **Runtime**: Cloudflare Workers (Hono v4)
+- **Runtime**: Cloudflare Workers
 - **Database**: Cloudflare D1 (SQLite)
-- **Email parsing**: `postal-mime` v3
-- **Validation**: `@hono/zod-validator` + `zod` v4
-- **API docs**: `@hono/zod-openapi` (OpenAPI 3.0 spec) + `@scalar/hono-api-reference` (interactive docs UI)
+- **Email parsing**: `postal-mime` v4
 - **TypeScript**: v7
 
 ## Project Structure
@@ -14,18 +12,14 @@
 ```
 email-handler/
 ├── src/
-│   ├── index.ts              # Main worker entry (fetch + email handlers)
+│   ├── index.ts              # Main worker entry (email handler)
 │   ├── email.ts              # Email handler (parse, filter, store, notify)
 │   ├── db.ts                 # D1 operations (saveEmail)
 │   ├── parser.ts             # HTML text extraction, OTP detection, summary formatting
 │   ├── discord.ts            # Discord webhook notification
+│   ├── telegram.ts           # Telegram notification
 │   ├── filter.ts             # Sender blocklist logic
-│   ├── types.ts              # TypeScript types
-│   ├── routes/
-│   │   └── emails.ts         # REST API routes (list, get, delete)
-│   └── middleware/
-│       ├── auth.ts           # Bearer token authentication
-│       └── error-handler.ts  # Global error handler
+│   └── types.ts              # TypeScript types
 ├── schema.sql                # D1 database schema
 ├── wrangler.jsonc            # Cloudflare Workers config
 └── worker-configuration.d.ts # Generated types (wrangler types)
@@ -43,15 +37,6 @@ email-handler/
 6. **Build summary** with `buildEmailSummary()` — formats as plain text
 7. **Send notifications** via `ctx.waitUntil()` — Discord (embed + OTP), Telegram (HTML message + OTP)
 8. **Fallback**: On error, forwards raw email to `FALLBACK_EMAIL` if configured
-
-### REST API
-
-- **Framework**: Hono v4 with `OpenAPIHono` (App Router pattern)
-- **Auth**: Bearer token via `hono/bearer-auth` middleware on `/api/*`
-- **Routes**: Mounted in `src/index.ts` as `app.route('/api/email', emails)`
-- **Validation**: Zod schemas with `@hono/zod-validator` → now via `createRoute` in `src/routes/emails.ts`
-- **Schemas**: All request/response Zod schemas live in `src/schemas.ts`
-- **Docs**: OpenAPI spec at `GET /openapi.json`, Scalar UI at `GET /docs` (both public)
 
 ### OTP Detection
 
@@ -95,7 +80,6 @@ All configured in Wrangler secrets or `.dev.vars`:
 | `TELEGRAM_BOT_TOKEN`  | Optional | Telegram bot token from @BotFather     |
 | `TELEGRAM_CHAT_ID`    | Optional | Telegram chat ID for notifications     |
 | `FALLBACK_EMAIL`      | Secret   | Fallback recipient on processing error |
-| `API_TOKEN`           | Secret   | Bearer token for REST API auth         |
 | `BLOCKED_EMAILS`      | Optional | Comma-separated sender addresses       |
 | `BLOCK_PATTERNS`      | Optional | Comma-separated domain patterns        |
 
@@ -116,28 +100,15 @@ CREATE TABLE emails (
 );
 ```
 
-## API Authentication
-
-All `/api/email` routes require:
-
-```
-Authorization: Bearer <API_TOKEN>
-```
-
-Implemented via `hono/bearer-auth` with `verifyToken` callback in `src/middleware/auth.ts`.
-
 ## Error Handling
 
-- Global error handler in `src/middleware/error-handler.ts` returns JSON errors
 - Email processing errors log to console and forward to `FALLBACK_EMAIL` if configured
 - Discord webhook failures throw with response body included in error message
-- API validation errors return 400 with Zod error details
 
 ## Type Safety
 
 - `worker-configuration.d.ts` generated from `wrangler.jsonc` via `pnpm cf-typegen`
-- Manually augmented with env var types (`DISCORD_WEBHOOK_URL`, `API_TOKEN`, etc.)
-- Hono context typed as `Context<{ Bindings: Env }>` for env access
+- Manually augmented with env var types (`DISCORD_WEBHOOK_URL`, etc.)
 - D1 query results typed via `EmailRow` interface
 
 ## Testing Locally
@@ -146,7 +117,6 @@ Implemented via `hono/bearer-auth` with `verifyToken` callback in `src/middlewar
    ```
    DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/<id>/<token>
    FALLBACK_EMAIL=you@example.com
-   API_TOKEN=test-token
    ```
 
 2. Create local D1 database:
@@ -157,16 +127,6 @@ Implemented via `hono/bearer-auth` with `verifyToken` callback in `src/middlewar
 3. Start dev server:
    ```bash
    pnpm dev
-   ```
-
-4. Test email endpoint with curl (requires email routing configured):
-   ```bash
-   # Send test email to your configured email address
-   ```
-
-5. Test REST API:
-   ```bash
-   curl -H "Authorization: Bearer test-token" http://localhost:8787/api/email
    ```
 
 ## Deployment
@@ -182,7 +142,6 @@ Implemented via `hono/bearer-auth` with `verifyToken` callback in `src/middlewar
    ```bash
    wrangler secret put DISCORD_WEBHOOK_URL
    wrangler secret put FALLBACK_EMAIL
-   wrangler secret put API_TOKEN
    # Optional:
    wrangler secret put BLOCKED_EMAILS
    wrangler secret put BLOCK_PATTERNS
@@ -194,14 +153,3 @@ Implemented via `hono/bearer-auth` with `verifyToken` callback in `src/middlewar
    ```
 
 4. Configure email routing in Cloudflare dashboard to point to this worker.
-
-## Recent Changes (2026-09-29)
-
-- Removed unused `getEmailById`, `listEmails`, `deleteEmailById` from `db.ts`
-- Fixed `EmailRecord` type to properly extend `Email` from postal-mime
-- Improved HTML entity decoding (`&nbsp;`, `&amp;`, `&lt;`, `&gt;`, `&quot;`, `&#39;`)
-- Fixed OTP extraction to check both plain text and HTML-extracted body
-- Added error response body to Discord webhook failure messages
-- Extracted `parseEmailId` helper to deduplicate ID validation
-- Moved blocklists from hardcoded arrays to env vars (`BLOCKED_EMAILS`, `BLOCK_PATTERNS`)
-- Fixed auth middleware for `hono/bearer-auth` API change (`verifyToken` callback)

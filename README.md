@@ -4,16 +4,15 @@ English | [Indonesian](README_id.md)
 
 ![email-handler](https://github.com/user-attachments/assets/538b2ab3-fc5d-4738-994a-c404059ceb2c)
 
-A serverless Cloudflare Email Worker that parses incoming emails, stores them in D1, and posts a human-readable summary to Discord via webhook.
+A serverless Cloudflare Email Worker that parses incoming emails, stores them in D1, and sends notifications to Discord and Telegram.
 
 ## Features
 
 - **Email parsing**: Parses raw MIME with `postal-mime`, extracts text from HTML, and detects OTP codes.
 - **Sender blocklist**: Rejects emails from specific addresses or domain patterns (supports `*` wildcard, configured via env vars).
 - **D1 storage**: Stores full email data (sender, recipient, subject, body text, body HTML, raw MIME) in Cloudflare D1.
-- **Discord notification**: Posts a `.txt` summary with embedded OTP codes to a Discord webhook on each received email.
+- **Discord notification**: Posts a `.txt` summary with embedded OTP codes to a Discord webhook.
 - **Telegram notification**: Posts a summary to a Telegram chat via bot API.
-- **REST API**: Hono-based JSON API with bearer token auth for listing, searching, fetching, and deleting emails.
 
 ## How It Works
 
@@ -22,7 +21,8 @@ On each incoming email:
 1. Raw MIME is parsed; sender is checked against the blocklist — rejected emails get `setReject`.
 2. Text is extracted from HTML body (with entity decoding); OTP codes are detected.
 3. Full email is saved to D1.
-4. A `.txt` summary is built and uploaded to Discord as a file attachment with OTP codes in the embed.
+4. A `.txt` summary is built and sent to Discord/Telegram with OTP codes highlighted.
+5. On error, raw email is forwarded to `FALLBACK_EMAIL` if configured.
 
 ## Configuration
 
@@ -34,7 +34,6 @@ On each incoming email:
 | `TELEGRAM_BOT_TOKEN`  | Telegram bot token from @BotFather                      | No       |
 | `TELEGRAM_CHAT_ID`    | Telegram chat ID to post notifications to               | No       |
 | `FALLBACK_EMAIL`      | Fallback recipient address if processing fails          | Yes      |
-| `API_TOKEN`           | Bearer token for REST API authentication                | Yes      |
 | `BLOCKED_EMAILS`      | Comma-separated exact sender addresses to block         | No       |
 | `BLOCK_PATTERNS`      | Comma-separated domain patterns to block (`*` wildcard) | No       |
 
@@ -47,7 +46,6 @@ DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/<id>/<token>
 TELEGRAM_BOT_TOKEN=123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
 TELEGRAM_CHAT_ID=123456789
 FALLBACK_EMAIL=you@example.com
-API_TOKEN=your-secret-token-here
 BLOCKED_EMAILS=spam@example.com,scam@test.com
 BLOCK_PATTERNS=spam.com,*.spam.com
 ```
@@ -64,78 +62,94 @@ BLOCK_PATTERNS=spam.com,*.spam.com
 ]
 ```
 
-## API Documentation
+## Setup
 
-Interactive docs: `GET /docs` (Scalar UI)
-OpenAPI spec: `GET /openapi.json`
+### Prerequisites
 
-## REST API
+- [Node.js](https://nodejs.org/) (v18+)
+- [pnpm](https://pnpm.io/)
+- A [Cloudflare account](https://dash.cloudflare.com/sign-up)
+- A domain added to Cloudflare (for email routing)
 
-All endpoints require `Authorization: Bearer <API_TOKEN>` header.
+### 1. Clone and install
 
-### `GET /api/email`
+```bash
+git clone https://github.com/haiueom/email-handler.git
+cd email-handler
+pnpm install
+```
 
-List emails with pagination and search.
+### 2. Create D1 database
 
-**Query params:**
-- `page` (default: 1)
-- `limit` (default: 20, max: 100)
-- `search` (optional, searches subject and sender)
+```bash
+wrangler d1 create email-db
+```
 
-**Response:**
-```json
-{
-  "data": [...],
-  "meta": {
-    "total": 100,
-    "page": 1,
-    "limit": 20,
-    "totalPages": 5
+Copy the `database_id` from the output and replace it in `wrangler.jsonc`:
+
+```jsonc
+"d1_databases": [
+  {
+    "binding": "DB",
+    "database_name": "email-db",
+    "database_id": "<your-database-id>"
   }
-}
+]
 ```
 
-### `GET /api/email/:id`
+### 3. Initialize the database schema
 
-Fetch a single email by ID.
+For local development:
 
-**Response:**
-```json
-{
-  "data": {
-    "id": 1,
-    "recipient": "you@example.com",
-    "sender": "sender@example.com",
-    "subject": "Hello",
-    "body_text": "...",
-    "body_html": "...",
-    "received_at": "2026-09-29T10:00:00.000Z"
-  }
-}
+```bash
+wrangler d1 execute email-db --local --file=schema.sql
 ```
 
-### `DELETE /api/email/:id`
+For production:
 
-Delete a single email.
-
-**Response:**
-```json
-{ "success": true }
+```bash
+wrangler d1 execute email-db --remote --file=schema.sql
 ```
 
-### `DELETE /api/email`
+### 4. Configure environment variables
 
-Bulk delete multiple emails.
+Create a `.dev.vars` file for local development:
 
-**Body:**
-```json
-[1, 2, 3]
+```env
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/<id>/<token>
+FALLBACK_EMAIL=you@example.com
 ```
 
-**Response:**
-```json
-{ "success": true, "deleted": 3 }
+For production, set secrets via Wrangler:
+
+```bash
+wrangler secret put DISCORD_WEBHOOK_URL
+wrangler secret put FALLBACK_EMAIL
+
+# Optional:
+wrangler secret put TELEGRAM_BOT_TOKEN
+wrangler secret put TELEGRAM_CHAT_ID
+wrangler secret put BLOCKED_EMAILS
+wrangler secret put BLOCK_PATTERNS
 ```
+
+### 5. Local development
+
+```bash
+pnpm dev
+```
+
+### 6. Deploy
+
+```bash
+pnpm deploy
+```
+
+### 7. Configure email routing
+
+1. Go to [Cloudflare Dashboard](https://dash.cloudflare.com/) → your domain → **Email** → **Email Routing**.
+2. Enable Email Routing for your domain.
+3. Under **Routing rules**, create a rule that routes your desired address (e.g. `catch-all` or a specific address) to the `email-handler` Worker.
 
 ## Database Schema
 
@@ -163,8 +177,6 @@ pnpm cf-typegen   # Generate Cloudflare binding types
 
 ## Stack
 
-- Cloudflare Workers (Hono framework)
+- Cloudflare Workers
 - Cloudflare D1 (SQLite)
 - `postal-mime` for email parsing
-- `@hono/zod-validator` + `zod` for request validation
-
