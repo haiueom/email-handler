@@ -50,18 +50,6 @@ BLOCKED_EMAILS=spam@example.com,scam@test.com
 BLOCK_PATTERNS=spam.com,*.spam.com
 ```
 
-### `wrangler.jsonc`
-
-```jsonc
-"d1_databases": [
-  {
-    "binding": "DB",
-    "database_name": "email-db",
-    "database_id": "your-d1-database-id"
-  }
-]
-```
-
 ## Setup
 
 ### Prerequisites
@@ -175,8 +163,3 @@ pnpm deploy-min   # Deploy with minification
 pnpm cf-typegen   # Generate Cloudflare binding types
 ```
 
-## Stack
-
-- Cloudflare Workers
-- Cloudflare D1 (SQLite)
-- `postal-mime` for email parsing
