@@ -8,8 +8,8 @@ export function extractTextFromHtml(html: string): string {
 	return (
 		html
 			// Drop script/style blocks entirely so their contents don't leak into output
-			.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, ' ')
-			.replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, ' ')
+			.replace(/<script\b[^>]*>[\s\S]*?<\/script[^>]*>/gi, ' ')
+			.replace(/<style\b[^>]*>[\s\S]*?<\/style[^>]*>/gi, ' ')
 			// Drop HTML comments
 			.replace(/<!--[\s\S]*?-->/g, ' ')
 			// Remove tags, including quoted attributes that may contain '>' characters
