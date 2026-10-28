@@ -44,22 +44,26 @@ email-handler/
 ### OTP Detection
 
 `extractOtpCodes(text)` in `src/parser.ts`:
+
 - Matches 4-8 digit codes near keywords (`verification`, `otp`, `code`, `pin`)
 - Excludes phone numbers (country code prefix, phone/mobile/cell context)
 - Excludes codes embedded in larger numbers
 - Works on both plain text and HTML-extracted text
 
 `extractTextFromHtml(html)` in `src/parser.ts`:
+
 - Removes tags (including quoted attributes containing `>`), script/style blocks, and comments
 - Decodes common HTML entities
 
 ### Blocklist
 
 Configured via env vars:
+
 - `BLOCKED_EMAILS`: Comma-separated exact addresses (case-insensitive)
 - `BLOCK_PATTERNS`: Comma-separated domain patterns (`*` = wildcard)
 
 Example:
+
 ```
 BLOCKED_EMAILS=spam@example.com,scam@test.com
 BLOCK_PATTERNS=spam.com,*.spam.com
@@ -125,42 +129,47 @@ CREATE TABLE emails (
 ## Testing Locally
 
 1. Create `.dev.vars`:
-   ```
-   DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/<id>/<token>
-   FALLBACK_EMAIL=you@example.com
-   ```
+
+    ```
+    DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/<id>/<token>
+    FALLBACK_EMAIL=you@example.com
+    ```
 
 2. Create local D1 database:
-   ```bash
-   wrangler d1 execute email-db --local --file=schema.sql
-   ```
+
+    ```bash
+    wrangler d1 execute email-db --local --file=schema.sql
+    ```
 
 3. Start dev server:
-   ```bash
-   pnpm dev
-   ```
+    ```bash
+    pnpm dev
+    ```
 
 ## Deployment
 
 1. Create production D1 database:
-   ```bash
-   wrangler d1 create email-db
-   # Copy database_id to wrangler.jsonc
-   wrangler d1 execute email-db --remote --file=schema.sql
-   ```
+
+    ```bash
+    wrangler d1 create email-db
+    # Copy database_id to wrangler.jsonc
+    wrangler d1 execute email-db --remote --file=schema.sql
+    ```
 
 2. Set secrets:
-   ```bash
-   wrangler secret put DISCORD_WEBHOOK_URL
-   wrangler secret put FALLBACK_EMAIL
-   # Optional:
-   wrangler secret put BLOCKED_EMAILS
-   wrangler secret put BLOCK_PATTERNS
-   ```
+
+    ```bash
+    wrangler secret put DISCORD_WEBHOOK_URL
+    wrangler secret put FALLBACK_EMAIL
+    # Optional:
+    wrangler secret put BLOCKED_EMAILS
+    wrangler secret put BLOCK_PATTERNS
+    ```
 
 3. Deploy:
-   ```bash
-   pnpm deploy
-   ```
+
+    ```bash
+    pnpm deploy
+    ```
 
 4. Configure email routing in Cloudflare dashboard to point to this worker.

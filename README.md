@@ -169,4 +169,3 @@ pnpm typecheck    # Run TypeScript type checks
 pnpm test         # Run unit tests (Vitest)
 pnpm precommit    # Run TypeScript + Prettier checks
 ```
-

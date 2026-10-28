@@ -30,6 +30,7 @@ See the [suppressions docs](https://developers.cloudflare.com/email-service/conc
 ## Your Responsibilities
 
 ### Content
+
 - Include both HTML and plain text versions
 - Use a recognizable sender name: `{ email: "noreply@app.com", name: "My App" }`
 - Write honest subject lines — avoid ALL CAPS, excessive punctuation
@@ -37,11 +38,13 @@ See the [suppressions docs](https://developers.cloudflare.com/email-service/conc
 - Use full URLs from your domain — avoid URL shorteners
 
 ### List Quality
+
 - Validate email addresses before sending
 - Implement double opt-in for subscriptions
 - Honor unsubscribe requests promptly
 
 ### Transactional Only
+
 Email Service is for **transactional email** (triggered by user actions: signups, password resets, order confirmations). Marketing/bulk campaigns are not permitted — use a dedicated marketing platform.
 
 ## Monitoring Deliverability
@@ -61,11 +64,11 @@ Every send (REST API or Workers binding) returns immediate delivery feedback. Ch
 
 ```json
 {
-  "result": {
-    "delivered": ["user@example.com"],
-    "permanent_bounces": ["bad@nonexistent.com"],
-    "queued": ["slow@recipient.com"]
-  }
+	"result": {
+		"delivered": ["user@example.com"],
+		"permanent_bounces": ["bad@nonexistent.com"],
+		"queued": ["slow@recipient.com"]
+	}
 }
 ```
 
@@ -84,9 +87,9 @@ Returns:
 
 ```json
 {
-  "result": {
-    "quota": { "value": 5000, "unit": "day" }
-  }
+	"result": {
+		"quota": { "value": 5000, "unit": "day" }
+	}
 }
 ```
 
@@ -105,18 +108,18 @@ Returns:
 
 ```json
 {
-  "page": 1,
-  "per_page": 100,
-  "total": 2,
-  "result": [
-    {
-      "id": "396a5436-d4b0-42a6-b3fc-48e8fa522321",
-      "email": "bounced@example.com",
-      "reason": "hard_bounce",
-      "created_at": "2026-03-15T10:00:00Z",
-      "expires_at": null
-    }
-  ]
+	"page": 1,
+	"per_page": 100,
+	"total": 2,
+	"result": [
+		{
+			"id": "396a5436-d4b0-42a6-b3fc-48e8fa522321",
+			"email": "bounced@example.com",
+			"reason": "hard_bounce",
+			"created_at": "2026-03-15T10:00:00Z",
+			"expires_at": null
+		}
+	]
 }
 ```
 
@@ -146,115 +149,95 @@ Zone-level suppressions are also available at `/zones/{zone_id}/email/sending/su
 
 Email Service exposes two zone-level datasets via the [GraphQL Analytics API](https://developers.cloudflare.com/analytics/graphql-api/). You can explore the schema interactively at [graphql.cloudflare.com/explorer](https://graphql.cloudflare.com/explorer). Metrics are retained for 31 days.
 
-| Dataset | Description |
-|---------|-------------|
-| `emailSendingAdaptiveGroups` | Aggregated counts grouped by dimensions (status, date, domain, auth results, etc.) |
-| `emailSendingAdaptive` | Individual email events with full detail (from, to, subject, messageId, errors, etc.) |
+| Dataset                      | Description                                                                           |
+| ---------------------------- | ------------------------------------------------------------------------------------- |
+| `emailSendingAdaptiveGroups` | Aggregated counts grouped by dimensions (status, date, domain, auth results, etc.)    |
+| `emailSendingAdaptive`       | Individual email events with full detail (from, to, subject, messageId, errors, etc.) |
 
 These are **zone-level** datasets — query under `viewer > zones`, not `accounts`.
 
 **Aggregated dimensions** (`emailSendingAdaptiveGroups`):
 
-| Dimension | Type | Description |
-|-----------|------|-------------|
-| `date` | Date | Day-level grouping |
-| `datetime` | Time | Exact timestamp (also: `datetimeMinute`, `datetimeFiveMinutes`, `datetimeFifteenMinutes`, `datetimeHour`) |
-| `status` | string | Delivery status |
-| `eventType` | string | Event type |
-| `sendingDomain` | string | The sending domain |
-| `envelopeTo` | string | Recipient address |
-| `errorCause` | string | Error cause for failed sends |
-| `arc`, `dkim`, `dmarc`, `spf` | string | Email authentication results |
-| `isSpam`, `isNDR`, `isLastEvent` | uint8 | Boolean flags |
-| `spamScore`, `spamThreshold` | uint32 | Spam scoring |
+| Dimension                        | Type   | Description                                                                                               |
+| -------------------------------- | ------ | --------------------------------------------------------------------------------------------------------- |
+| `date`                           | Date   | Day-level grouping                                                                                        |
+| `datetime`                       | Time   | Exact timestamp (also: `datetimeMinute`, `datetimeFiveMinutes`, `datetimeFifteenMinutes`, `datetimeHour`) |
+| `status`                         | string | Delivery status                                                                                           |
+| `eventType`                      | string | Event type                                                                                                |
+| `sendingDomain`                  | string | The sending domain                                                                                        |
+| `envelopeTo`                     | string | Recipient address                                                                                         |
+| `errorCause`                     | string | Error cause for failed sends                                                                              |
+| `arc`, `dkim`, `dmarc`, `spf`    | string | Email authentication results                                                                              |
+| `isSpam`, `isNDR`, `isLastEvent` | uint8  | Boolean flags                                                                                             |
+| `spamScore`, `spamThreshold`     | uint32 | Spam scoring                                                                                              |
 
 **Individual event fields** (`emailSendingAdaptive`) additionally include: `from`, `to`, `subject`, `messageId`, `sessionId`, `errorDetail`.
 
 **Email counts by status and date:**
 
 ```graphql
-query EmailSendingByStatus(
-  $zoneTag: string!
-  $start: Date!
-  $end: Date!
-) {
-  viewer {
-    zones(filter: { zoneTag: $zoneTag }) {
-      emailSendingAdaptiveGroups(
-        filter: { date_geq: $start, date_leq: $end }
-        limit: 10000
-        orderBy: [date_DESC]
-      ) {
-        count
-        dimensions {
-          date
-          status
-        }
-      }
-    }
-  }
+query EmailSendingByStatus($zoneTag: string!, $start: Date!, $end: Date!) {
+	viewer {
+		zones(filter: { zoneTag: $zoneTag }) {
+			emailSendingAdaptiveGroups(filter: { date_geq: $start, date_leq: $end }, limit: 10000, orderBy: [date_DESC]) {
+				count
+				dimensions {
+					date
+					status
+				}
+			}
+		}
+	}
 }
 ```
 
 **Filter by status (e.g. only failures):**
 
 ```graphql
-query EmailFailures(
-  $zoneTag: string!
-  $start: Date!
-  $end: Date!
-) {
-  viewer {
-    zones(filter: { zoneTag: $zoneTag }) {
-      emailSendingAdaptiveGroups(
-        filter: { date_geq: $start, date_leq: $end, status: "deliveryFailed" }
-        limit: 10000
-        orderBy: [date_DESC]
-      ) {
-        count
-        dimensions {
-          date
-          errorCause
-          sendingDomain
-        }
-      }
-    }
-  }
+query EmailFailures($zoneTag: string!, $start: Date!, $end: Date!) {
+	viewer {
+		zones(filter: { zoneTag: $zoneTag }) {
+			emailSendingAdaptiveGroups(
+				filter: { date_geq: $start, date_leq: $end, status: "deliveryFailed" }
+				limit: 10000
+				orderBy: [date_DESC]
+			) {
+				count
+				dimensions {
+					date
+					errorCause
+					sendingDomain
+				}
+			}
+		}
+	}
 }
 ```
 
 **Individual email events (troubleshooting):**
 
 ```graphql
-query RecentEmailEvents(
-  $zoneTag: string!
-  $start: Time!
-  $end: Time!
-) {
-  viewer {
-    zones(filter: { zoneTag: $zoneTag }) {
-      emailSendingAdaptive(
-        filter: { datetime_geq: $start, datetime_leq: $end }
-        limit: 50
-        orderBy: [datetime_DESC]
-      ) {
-        datetime
-        from
-        to
-        subject
-        status
-        eventType
-        sendingDomain
-        messageId
-        errorCause
-        errorDetail
-        dkim
-        dmarc
-        spf
-        isSpam
-      }
-    }
-  }
+query RecentEmailEvents($zoneTag: string!, $start: Time!, $end: Time!) {
+	viewer {
+		zones(filter: { zoneTag: $zoneTag }) {
+			emailSendingAdaptive(filter: { datetime_geq: $start, datetime_leq: $end }, limit: 50, orderBy: [datetime_DESC]) {
+				datetime
+				from
+				to
+				subject
+				status
+				eventType
+				sendingDomain
+				messageId
+				errorCause
+				errorDetail
+				dkim
+				dmarc
+				spf
+				isSpam
+			}
+		}
+	}
 }
 ```
 
@@ -278,8 +261,8 @@ curl "https://api.cloudflare.com/client/v4/graphql" \
 
 ## Metrics to Watch
 
-| Metric | Target | If Out of Range |
-|--------|--------|-----------------|
-| Delivery rate | > 95% | Check for invalid addresses; verify DNS records |
-| Hard bounce rate | < 2% | Clean your email list |
-| Complaint rate | < 0.1% | Make unsubscribe easier; stop unwanted emails |
+| Metric           | Target | If Out of Range                                 |
+| ---------------- | ------ | ----------------------------------------------- |
+| Delivery rate    | > 95%  | Check for invalid addresses; verify DNS records |
+| Hard bounce rate | < 2%   | Clean your email list                           |
+| Complaint rate   | < 0.1% | Make unsubscribe easier; stop unwanted emails   |

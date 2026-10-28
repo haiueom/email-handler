@@ -28,14 +28,14 @@ Pada setiap email masuk:
 
 ### Variabel Lingkungan
 
-| Variabel              | Deskripsi                                                    | Wajib |
-| --------------------- | ------------------------------------------------------------ | ----- |
-| `DISCORD_WEBHOOK_URL` | URL Discord webhook untuk notifikasi email                   | Tidak |
-| `TELEGRAM_BOT_TOKEN`  | Token bot Telegram dari @BotFather                           | Tidak |
-| `TELEGRAM_CHAT_ID`    | ID chat Telegram untuk notifikasi                            | Tidak |
-| `FALLBACK_EMAIL`      | Alamat email penerima cadangan jika pemrosesan gagal         | Ya    |
-| `BLOCKED_EMAILS`      | Alamat pengirim yang diblokir, dipisahkan koma               | Tidak |
-| `BLOCK_PATTERNS`      | Pola domain yang diblokir, dipisahkan koma (wildcard `*`)    | Tidak |
+| Variabel              | Deskripsi                                                 | Wajib |
+| --------------------- | --------------------------------------------------------- | ----- |
+| `DISCORD_WEBHOOK_URL` | URL Discord webhook untuk notifikasi email                | Tidak |
+| `TELEGRAM_BOT_TOKEN`  | Token bot Telegram dari @BotFather                        | Tidak |
+| `TELEGRAM_CHAT_ID`    | ID chat Telegram untuk notifikasi                         | Tidak |
+| `FALLBACK_EMAIL`      | Alamat email penerima cadangan jika pemrosesan gagal      | Ya    |
+| `BLOCKED_EMAILS`      | Alamat pengirim yang diblokir, dipisahkan koma            | Tidak |
+| `BLOCK_PATTERNS`      | Pola domain yang diblokir, dipisahkan koma (wildcard `*`) | Tidak |
 
 > Discord dan Telegram keduanya opsional. Jika tidak ada yang dikonfigurasi, email tetap disimpan di D1 tanpa notifikasi.
 
@@ -169,4 +169,3 @@ pnpm typecheck    # Menjalankan pemeriksaan tipe TypeScript
 pnpm test         # Menjalankan unit test (Vitest)
 pnpm precommit    # Menjalankan pemeriksaan TypeScript + Prettier
 ```
-
