@@ -14,20 +14,15 @@ export async function sendTelegramNotification(
 ): Promise<void> {
 	const fromAddress = parsedEmail.from?.address ?? 'Unknown';
 	const toAddress = parsedEmail.to?.[0]?.address ?? 'Unknown';
-	const subject = parsedEmail.subject || '(No Subject)';
+	const subject = (parsedEmail.subject || '(No Subject)').substring(0, 500);
 
 	const bodyText = parsedEmail.text || (parsedEmail.html ? summaryText.match(/BODY\n====\n([\s\S]*)/)?.[1] || '' : '');
 	const otpCodes = extractOtpCodes(bodyText);
 
-	// ponytail: parse_mode=HTML needs entity-encoded values; upgrade path: none
+	// Telegram parse_mode=HTML requires entity-encoded values.
 	const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-	const lines = [
-		`<b>${esc(subject)}</b>`,
-		'',
-		`📤 From: <code>${esc(fromAddress)}</code>`,
-		`📥 To: <code>${esc(toAddress)}</code>`,
-	];
+	const lines = [`<b>${esc(subject)}</b>`, '', `📤 From: <code>${esc(fromAddress)}</code>`, `📥 To: <code>${esc(toAddress)}</code>`];
 	if (otpCodes.length > 0) {
 		lines.push(`🔐 OTP: <code>${esc(otpCodes.join('  '))}</code>`);
 	}

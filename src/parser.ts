@@ -5,16 +5,24 @@ import type { EmailRecord } from './types';
  * Strips HTML tags and decodes common entities, returns plain text.
  */
 export function extractTextFromHtml(html: string): string {
-	return html
-		.replace(/<[^>]+>/g, ' ')
-		.replace(/&nbsp;/gi, ' ')
-		.replace(/&lt;/gi, '<')
-		.replace(/&gt;/gi, '>')
-		.replace(/&quot;/gi, '"')
-		.replace(/&#39;/gi, "'")
-		.replace(/&amp;/gi, '&')
-		.replace(/\s\s+/g, ' ')
-		.trim();
+	return (
+		html
+			// Drop script/style blocks entirely so their contents don't leak into output
+			.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
+			.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
+			// Drop HTML comments
+			.replace(/<!--[\s\S]*?-->/g, ' ')
+			// Remove tags, including quoted attributes that may contain '>' characters
+			.replace(/<(?:[^>"']|"[^"]*"|'[^']*')*>/g, ' ')
+			.replace(/&nbsp;/gi, ' ')
+			.replace(/&lt;/gi, '<')
+			.replace(/&gt;/gi, '>')
+			.replace(/&quot;/gi, '"')
+			.replace(/&#39;/gi, "'")
+			.replace(/&amp;/gi, '&')
+			.replace(/\s\s+/g, ' ')
+			.trim()
+	);
 }
 
 /**
@@ -26,7 +34,7 @@ export function extractOtpCodes(text: string): string[] {
 
 	// OTP context keywords that should appear near the code
 	const otpPatterns = [
-		/(?:verification|verify|confirm|one[- ]?time|otp|code|pin|passcode|security code|access code)[\s:\-]*\b(\d{4,8})\b/gi,
+		/(?:verification|verify|confirm|one[- ]?time|otp|code|pin|passcode|security code|access code)[\s:\-]*(?:is|are)?[\s:\-]*\b(\d{4,8})\b/gi,
 		/\b(\d{4,8})\b[\s:\-]*(?:is your|is the|verification|verify|confirm|otp|code|pin)/gi,
 		/(?:enter|use|input|type)[\s]+(?:code|pin|otp)[\s:]*\b(\d{4,8})\b/gi,
 	];
@@ -74,20 +82,26 @@ export function buildEmailSummary(email: Omit<EmailRecord, 'id'>, extractedText:
 	const body = email.text || extractedText || '(No body text)';
 
 	const attachments =
-		email.attachments.length > 0
-			? email.attachments.map((a, i) => `${i + 1}. ${a.filename ?? '(no filename)'} (${a.mimeType}, ${a.disposition ?? 'unknown'})`).join('\n')
+		(email.attachments?.length ?? 0) > 0
+			? (email.attachments ?? [])
+					.map((a, i) => `${i + 1}. ${a.filename ?? '(no filename)'} (${a.mimeType}, ${a.disposition ?? 'unknown'})`)
+					.join('\n')
 			: '-';
 
 	const section = (title: string, bar: string, content: string) => `${title}\n${bar}\n${content}`;
 
 	return [
-		section('EMAIL SUMMARY', '=============', [
-			`Stored ID: ${storedId}`,
-			`Subject:   ${email.subject || '(No Subject)'}`,
-			`From:      ${formatAddress(email.from)}`,
-			`To:        ${formatAddressList(email.to)}`,
-			`Date:      ${email.date ?? '-'}`,
-		].join('\n')),
+		section(
+			'EMAIL SUMMARY',
+			'=============',
+			[
+				`Stored ID: ${storedId}`,
+				`Subject:   ${email.subject || '(No Subject)'}`,
+				`From:      ${formatAddress(email.from)}`,
+				`To:        ${formatAddressList(email.to)}`,
+				`Date:      ${email.date ?? '-'}`,
+			].join('\n'),
+		),
 		section('ATTACHMENTS', '===========', attachments),
 		section('BODY', '====', body),
 	].join('\n\n');

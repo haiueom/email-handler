@@ -11,9 +11,9 @@ export async function sendDiscordNotification(
 	storedId: number,
 ): Promise<void> {
 	const fromAddress = parsedEmail.from?.address ?? 'Unknown';
-	const fromName = parsedEmail.from?.name || fromAddress;
+	const fromName = (parsedEmail.from?.name || fromAddress).substring(0, 200);
 	const toAddress = parsedEmail.to?.[0]?.address ?? 'Unknown';
-	const toName = parsedEmail.to?.[0]?.name || toAddress;
+	const toName = (parsedEmail.to?.[0]?.name || toAddress).substring(0, 200);
 
 	const fields: Record<string, unknown>[] = [
 		{ name: `📤 From: ${fromName}`, value: `\`\`\`${fromAddress}\`\`\``, inline: false },

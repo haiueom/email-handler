@@ -19,7 +19,7 @@ A serverless Cloudflare Email Worker that parses incoming emails, stores them in
 On each incoming email:
 
 1. Raw MIME is parsed; sender is checked against the blocklist — rejected emails get `setReject`.
-2. Text is extracted from HTML body (with entity decoding); OTP codes are detected.
+2. Text is extracted from HTML body (robust against attributes, script/style, and comments; with entity decoding); OTP codes are detected.
 3. Full email is saved to D1.
 4. A `.txt` summary is built and sent to Discord/Telegram with OTP codes highlighted.
 5. On error, raw email is forwarded to `FALLBACK_EMAIL` if configured.
@@ -154,6 +154,10 @@ CREATE TABLE emails (
 );
 ```
 
+## CI
+
+GitHub Actions runs typecheck, Prettier, and tests on push/PR to `main`/`master` (see `.github/workflows/ci.yml`).
+
 ## Scripts
 
 ```bash
@@ -161,5 +165,8 @@ pnpm dev          # Local dev via wrangler
 pnpm deploy       # Deploy to Cloudflare
 pnpm deploy-min   # Deploy with minification
 pnpm cf-typegen   # Generate Cloudflare binding types
+pnpm typecheck    # Run TypeScript type checks
+pnpm test         # Run unit tests (Vitest)
+pnpm precommit    # Run TypeScript + Prettier checks
 ```
 

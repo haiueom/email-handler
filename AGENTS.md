@@ -22,6 +22,9 @@ email-handler/
 │   └── types.ts              # TypeScript types
 ├── schema.sql                # D1 database schema
 ├── wrangler.jsonc            # Cloudflare Workers config
+├── .pre-commit-config.yaml   # Pre-commit hooks
+├── .github/workflows/ci.yml  # CI workflow
+├── tests/                    # Unit tests (Vitest)
 └── worker-configuration.d.ts # Generated types (wrangler types)
 ```
 
@@ -46,6 +49,10 @@ email-handler/
 - Excludes codes embedded in larger numbers
 - Works on both plain text and HTML-extracted text
 
+`extractTextFromHtml(html)` in `src/parser.ts`:
+- Removes tags (including quoted attributes containing `>`), script/style blocks, and comments
+- Decodes common HTML entities
+
 ### Blocklist
 
 Configured via env vars:
@@ -67,6 +74,9 @@ pnpm dev          # Start local dev server (wrangler dev)
 pnpm deploy       # Deploy to Cloudflare Workers
 pnpm deploy-min   # Deploy with minification
 pnpm cf-typegen   # Regenerate worker-configuration.d.ts from wrangler.jsonc
+pnpm typecheck    # Run TypeScript type checks
+pnpm test         # Run unit tests (Vitest)
+pnpm precommit    # Run TypeScript + Prettier checks
 ```
 
 ## Environment Variables
@@ -103,6 +113,7 @@ CREATE TABLE emails (
 ## Error Handling
 
 - Email processing errors log to console and forward to `FALLBACK_EMAIL` if configured
+- Blocked senders are rejected even when parsing fails (best-effort sender extraction from raw headers)
 - Discord webhook failures throw with response body included in error message
 
 ## Type Safety

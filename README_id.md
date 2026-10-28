@@ -154,6 +154,10 @@ CREATE TABLE emails (
 );
 ```
 
+## CI
+
+GitHub Actions menjalankan typecheck, Prettier, dan test pada push/PR ke `main`/`master` (lihat `.github/workflows/ci.yml`).
+
 ## Scripts
 
 ```bash
@@ -161,5 +165,8 @@ pnpm dev          # Dev lokal via wrangler
 pnpm deploy       # Deploy ke Cloudflare
 pnpm deploy-min   # Deploy dengan minifikasi
 pnpm cf-typegen   # Generate tipe binding Cloudflare
+pnpm typecheck    # Menjalankan pemeriksaan tipe TypeScript
+pnpm test         # Menjalankan unit test (Vitest)
+pnpm precommit    # Menjalankan pemeriksaan TypeScript + Prettier
 ```
 

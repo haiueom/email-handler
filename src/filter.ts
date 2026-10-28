@@ -4,7 +4,9 @@
  */
 export function getBlockedEmails(env?: Env): string[] {
 	if (!env?.BLOCKED_EMAILS) return [];
-	return env.BLOCKED_EMAILS.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+	return env.BLOCKED_EMAILS.split(',')
+		.map((e) => e.trim().toLowerCase())
+		.filter(Boolean);
 }
 
 /**
@@ -17,13 +19,15 @@ export function getBlockedEmails(env?: Env): string[] {
  */
 export function getBlockPatterns(env?: Env): string[] {
 	if (!env?.BLOCK_PATTERNS) return [];
-	return env.BLOCK_PATTERNS.split(',').map((p) => p.trim()).filter(Boolean);
+	return env.BLOCK_PATTERNS.split(',')
+		.map((p) => p.trim())
+		.filter(Boolean);
 }
 
 let patternCache: { key: string; regexes: RegExp[] } = { key: '', regexes: [] };
 
-function compilePatterns(env: Env): RegExp[] {
-	const key = env.BLOCK_PATTERNS ?? '';
+function compilePatterns(env?: Env): RegExp[] {
+	const key = env?.BLOCK_PATTERNS ?? '';
 	if (patternCache.key === key) return patternCache.regexes;
 
 	const regexes = getBlockPatterns(env).map((pattern) => {
@@ -38,12 +42,13 @@ function compilePatterns(env: Env): RegExp[] {
  * Returns true if the lowercase sender address or its domain is blocked.
  */
 export function isSenderBlocked(sender: string, env?: Env): boolean {
+	const normalizedSender = sender.toLowerCase();
 	const blockedSet = new Set(getBlockedEmails(env));
-	if (blockedSet.has(sender)) return true;
+	if (blockedSet.has(normalizedSender)) return true;
 
-	const at = sender.lastIndexOf('@');
+	const at = normalizedSender.lastIndexOf('@');
 	if (at <= 0 || at === sender.length - 1) return false;
 
-	const domain = sender.slice(at + 1);
-	return compilePatterns(env as Env).some((re) => re.test(domain));
+	const domain = normalizedSender.slice(at + 1);
+	return compilePatterns(env).some((re) => re.test(domain));
 }

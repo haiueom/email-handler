@@ -5,13 +5,18 @@
 		"deploy": "wrangler deploy",
 		"deploy-min": "wrangler deploy --minify",
 		"dev": "wrangler dev",
-		"cf-typegen": "wrangler types"
+		"cf-typegen": "wrangler types",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run",
+		"precommit": "pnpm typecheck && prettier --check \"src/**/*.ts\""
 	},
 	"dependencies": {
 		"postal-mime": "^4.1.4"
 	},
 	"devDependencies": {
+		"prettier": "^3.3.3",
 		"typescript": "^7.0.2",
+		"vitest": "^5.0.5",
 		"wrangler": "^4.152.0"
 	}
 }

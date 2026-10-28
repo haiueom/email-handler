@@ -1,4 +1,4 @@
-import type { EmailRecord, EmailRow } from './types';
+import type { EmailRecord } from './types';
 
 /**
  * Inserts a parsed email into D1 and returns the new row ID.
@@ -24,6 +24,3 @@ export async function saveEmail(db: D1Database, email: Omit<EmailRecord, 'id'>, 
 	}
 	return result.meta.last_row_id;
 }
-
-
-
