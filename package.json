@@ -11,12 +11,12 @@
 		"precommit": "pnpm typecheck && prettier --check \"src/**/*.ts\""
 	},
 	"dependencies": {
-		"postal-mime": "^4.1.4"
+		"postal-mime": "^4.2.1"
 	},
 	"devDependencies": {
-		"prettier": "^3.3.3",
+		"prettier": "^3.10.1",
 		"typescript": "^7.0.2",
-		"vitest": "^5.0.5",
-		"wrangler": "^4.152.0"
+		"vitest": "^5.1.0",
+		"wrangler": "^4.160.1"
 	}
 }
